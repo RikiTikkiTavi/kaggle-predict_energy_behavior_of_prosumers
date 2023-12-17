@@ -1,0 +1,39 @@
+[tool.poetry]
+name = "predict-energy-behavior"
+version = "0.1.0"
+description = ""
+authors = ["Yahor Paromau <yahor.paromau@gmail.com>"]
+readme = "README.md"
+packages = [{ include = "predict_energy_behavior", from = "./src" }]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pandas = "^2.1.2"
+pyarrow = "^14.0.0"
+kaggle = "^1.5.16"
+scipy = "^1.11.3"
+torch = { version = "^2.1.1", source="torch-cuda12.1"}
+lightning = "^2.1.2"
+hydra-core = "^1.3.2"
+hydra-optuna-sweeper = "^1.2.0"
+mlflow = "^2.8.1"
+polars = "^0.19.14"
+hydra-submitit-launcher = "^1.2.0"
+hydra-joblib-launcher = "^1.2.0"
+numba = "^0.58.1"
+ipykernel = "^6.26.0"
+tqdm = "^4.66.1"
+seaborn = "^0.13.0"
+matplotlib = "^3.8.1"
+plotly = "^5.18.0"
+papermill = "^2.5.0"
+jupyter = "^1.0.0"
+
+[[tool.poetry.source]]
+name = "torch-cuda12.1"
+url = "https://download.pytorch.org/whl/cu121"
+priority="explicit"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
