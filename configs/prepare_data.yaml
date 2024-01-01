@@ -1,0 +1,16 @@
+# ---------- Overriding hydra default configs ----------
+hydra:
+  job:
+    name: make_features
+    chdir: true
+  run:
+    dir: ${dir.data_processed}/${phase}/${hydra.job.name}/${hydra.job.override_dirname}
+  sweep:
+    dir: ${dir.output_dir}/${hydra.job.name}/
+    subdir: ${hydra.job.override_dirname}
+
+defaults:
+  - _self_
+  - dir: alpha
+
+phase: train

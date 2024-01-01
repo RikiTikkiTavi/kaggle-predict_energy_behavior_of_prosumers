@@ -1,0 +1,3 @@
+data: /beegfs/ws/0/s4610340-energy_behavior/yahor/kaggle-predict_energy_behavior_of_prosumers/data
+data_raw: ${dir.data}/raw
+data_processed: ${dir.data}/processed
