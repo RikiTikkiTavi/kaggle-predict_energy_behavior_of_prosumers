@@ -47,9 +47,17 @@ class EnergyBehaviorInteractiveEDAWidget:
 
         trace_el_prices = go.Scatter(name="electricity_prices", x=df_el_prices["forecast_date"], y=df_el_prices["euros_per_mwh"])
         self.__widget_figure_electricity_prices = go.FigureWidget(data=[trace_el_prices])
+        self.__widget_figure_electricity_prices.update_layout(
+            title="Electricity prices",
+            yaxis_title="Price",
+        )
 
         trace_client_capacity = go.Scatter(name="client_capacity")
         self.__widget_figure_client_capacity = go.FigureWidget(data=[trace_client_capacity])
+        self.__widget_figure_client_capacity.update_layout(
+            title="Client",
+            yaxis_title="Installed capacity",
+        )
 
         self.__widget_select_unit.observe(self._handle_update_figure_widget, "value")
         self.__widget_select_private.observe(self._handle_update_select_unit_values)

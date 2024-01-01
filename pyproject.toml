@@ -29,6 +29,9 @@ plotly = "^5.18.0"
 papermill = "^2.5.0"
 jupyter = "^1.0.0"
 ydata-profiling = "^4.6.3"
+geopandas = "^0.14.1"
+shapely = "^2.0.2"
+contextily = "^1.5.0"
 
 [[tool.poetry.source]]
 name = "torch-cuda12.1"
