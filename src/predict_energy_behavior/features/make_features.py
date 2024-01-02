@@ -148,6 +148,7 @@ def make_train_features(
         )
         
         .drop("datetime", "hour", "dayofyear")
+        .drop_nulls(["target"])
     )
     
     return df_data
