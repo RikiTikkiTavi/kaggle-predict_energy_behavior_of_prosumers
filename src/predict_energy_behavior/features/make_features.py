@@ -147,7 +147,7 @@ def make_train_features(
             pl.col(pl.Float64).cast(pl.Float32),
         )
         
-        .drop("datetime", "hour", "dayofyear")
+        .drop("hour", "dayofyear")
         .drop_nulls(["target"])
     )
     
