@@ -34,6 +34,7 @@ shapely = "^2.0.2"
 contextily = "^1.5.0"
 haversine = "^2.8.0"
 geopy = "^2.4.1"
+prophet = "^1.1.5"
 
 [[tool.poetry.source]]
 name = "torch-cuda12.1"
