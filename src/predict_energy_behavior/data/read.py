@@ -1,9 +1,14 @@
+from itertools import chain
 from pathlib import Path
 from typing import NamedTuple
+import pandas as pd
+
+import requests
 import predict_energy_behavior.data.constants as constants
 from dataclasses import dataclass
 import polars as pl
-
+from shapely.geometry import Point, LineString, Polygon, MultiPolygon
+import geopandas as gpd
 
 @dataclass
 class RawDatasets:
@@ -26,3 +31,73 @@ def read_datasets_from_folder(path: Path) -> RawDatasets:
         weather_hist= pl.read_csv(path / "historical_weather.csv", columns=constants.historical_weather_cols, try_parse_dates=True),
         weather_station_to_county=pl.read_csv(path / "weather_station_to_county_mapping.csv", columns=constants.location_cols, try_parse_dates=True)
     )
+
+
+def order_ways(list_list_points):
+    #list_first_points = [list_points[0] for list_points in list_list_points]
+    #list_last_points = [list_points[-1] for list_points in list_list_points]
+    ordered_list_list_points = []
+    first_list_point = list_list_points[0]
+    list_points = list_list_points[0]
+    last_point = 0
+    while (last_point != first_list_point[-1]):
+        ordered_list_list_points.append(list_points)
+        list_list_points.remove(list_points)
+        list_first_points = [list_points[0] for list_points in list_list_points]
+        list_last_points = [list_points[-1] for list_points in list_list_points]
+        #print(list_points[0])
+        #print(list_points[-1])
+        #print()
+        last_point = list_points[-1]
+        try:
+            index_list_points = list_first_points.index(last_point)
+            list_points = list_list_points[index_list_points]
+        except ValueError:
+            try:
+                index_list_points = list_last_points.index(last_point)
+                list_points = list_list_points[index_list_points]
+                list_points.reverse()
+            except ValueError:
+                break
+        last_point = list_points[-1]
+    return ordered_list_list_points
+
+
+def load_county_boundaries():
+    # create query
+    overpass_query_counties = """
+    [out:json];
+    area["name:en"="Estonia"]->.searchArea;
+    (
+    relation["admin_level"="6"](area.searchArea);
+    );
+    out geom;
+    """
+
+
+    # get Estonia boundaries from overpass
+    response = requests.post("https://overpass-api.de/api/interpreter", data=overpass_query_counties)
+    estonia_geojson = response.json()
+
+    # parse geometry
+    geometry = []
+    names = []
+    for element in estonia_geojson['elements']:
+        members = element['members']
+        name = element["tags"]["alt_name"]
+        names.append(name)
+        coords_poly = []
+        for member in members:
+            if member['type'] == 'way' and 'geometry' in member:
+                coords = [(node['lon'], node['lat']) for node in member['geometry']]
+                coords_poly.append(coords)
+                #geometry.append(LineString(coords))
+        coords_poly = order_ways(coords_poly)
+        coords_poly = list(chain(*coords_poly))
+        geometry.append(Polygon(coords_poly))
+
+    name_series = pd.Series(names, name="County")
+    gdf = gpd.GeoDataFrame(name_series, geometry=geometry)
+    gdf = gdf.set_index("County")
+    gdf.crs = 'EPSG:4326'
+    return gdf
