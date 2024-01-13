@@ -68,6 +68,13 @@ class SolarOutputRegressor:
             rain_factor = np.maximum(0, 1 + parameters["C_rain_1d"] * regressors["C_rain_1d"])
         return rain_factor
 
+    def _snow_factor(self, parameters: dict[str, float], regressors: pd.DataFrame) -> np.ndarray:
+        snow_factor = 1.0
+        if "C_snow_1d" in parameters:
+            snow_factor = np.maximum(0, 1 - parameters["C_snow_1d"] * regressors["snowfall_1d"]**4)
+            # snow_factor = np.where(regressors["snowfall"] > parameters["Thr_snow_cov_100"], 0.0, snow_partial_cov_factor)
+        return snow_factor
+
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         regressors = X
         baseline_temperature = self.baseline_temperature
@@ -78,10 +85,7 @@ class SolarOutputRegressor:
         rain_factor = self._rain_factor(parameters, regressors)
         
         # snow impact factor
-        snow_factor = 1.0
-        if "C_snow" in parameters:
-            snow_partial_cov_factor = np.maximum(0, 1 - parameters["C_snow"] * regressors["snowfall"])
-            snow_factor = np.where(regressors["snowfall"] > parameters["Thr_snow_cov_100"], 0.0, snow_partial_cov_factor)
+        snow_factor = self._snow_factor(parameters, regressors)
 
         # wind impact factor
         wind_factor = 1.0
