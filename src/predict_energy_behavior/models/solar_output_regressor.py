@@ -70,8 +70,8 @@ class SolarOutputRegressor:
 
     def _snow_factor(self, parameters: dict[str, float], regressors: pd.DataFrame) -> np.ndarray:
         snow_factor = 1.0
-        if "C_snow_1d" in parameters:
-            snow_factor = np.maximum(0, 1 - parameters["C_snow_1d"] * regressors["snowfall_1d"]**4)
+        if "C_snow_3d" in parameters:
+            snow_factor = np.maximum(0, 1 - parameters["C_snow_3d"] * regressors["snowfall_3d"]**4)
             # snow_factor = np.where(regressors["snowfall"] > parameters["Thr_snow_cov_100"], 0.0, snow_partial_cov_factor)
         return snow_factor
 

@@ -1391,6 +1391,17 @@ gitdb = ">=4.0.1,<5"
 test = ["black", "coverage[toml]", "ddt (>=1.1.1,!=1.4.3)", "mock", "mypy", "pre-commit", "pytest", "pytest-cov", "pytest-instafail", "pytest-subtests", "pytest-sugar"]
 
 [[package]]
+name = "global-land-mask"
+version = "1.0.0"
+description = "Check whether a lat/lon point in on land or on sea"
+optional = false
+python-versions = "*"
+files = [
+    {file = "global-land-mask-1.0.0.tar.gz", hash = "sha256:956bf02e8b05bfc9f3a29cbc6e97d5ba4151c0732504acc73c2db9ea325ecff3"},
+    {file = "global_land_mask-1.0.0-py3-none-any.whl", hash = "sha256:07751fbb4e3834ee508a84ea64d9bd5340fbd0a8c951e24b43c323fcc670bb62"},
+]
+
+[[package]]
 name = "greenlet"
 version = "3.0.2"
 description = "Lightweight in-process concurrent programming"
@@ -5627,4 +5638,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10,<3.12"
-content-hash = "9b7e3c2c0bdf558fb797c66ab8ab7b893671501e777045737cc1ed11eb34fad6"
+content-hash = "a863405dc49d332082e543be23358d7fcc8ea44a8e39967d733f0ae7856c7be3"
