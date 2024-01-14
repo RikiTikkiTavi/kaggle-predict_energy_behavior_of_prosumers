@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import polars as pl
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 import geopandas as gpd
+from geopy.geocoders import Nominatim
 
 @dataclass
 class RawDatasets:
@@ -101,3 +102,32 @@ def load_county_boundaries():
     gdf = gdf.set_index("County")
     gdf.crs = 'EPSG:4326'
     return gdf
+
+def load_capitals():
+    geolocator = Nominatim(user_agent='myapplication')
+
+    county_to_capital = {
+        "Harjumaa": "Tallinn",
+        "Hiiumaa": "Kärdla",
+        "Ida-Virumaa": "Jõhvi",
+        "Järvamaa": "Paide",
+        "Jõgevamaa": "Jõgeva",
+        "Läänemaa": "Haapsalu",
+        "Lääne-Virumaa": "Rakvere",
+        "Põlvamaa": "Põlva",
+        "Pärnumaa": "Pärnu",
+        "Raplamaa": "Rapla",
+        "Saaremaa": "Kuressaare",
+        "Tartumaa": "Tartu",
+        "Valgamaa": "Valga",
+        "Viljandimaa": "Viljandi",
+        "Võrumaa": "Võru"
+    }
+
+    data = []
+
+    for county, capital in county_to_capital.items():
+        location = geolocator.geocode(capital)
+        data.append(pd.Series([county, capital, location.raw["lat"], location.raw["lon"]], index=["county_name", "capital_name", "lat", "lon"]))
+
+    return pd.DataFrame(data)

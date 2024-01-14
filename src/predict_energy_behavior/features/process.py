@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 import geopandas as gpd
+import geopy.distance
+from global_land_mask import globe
 
 def merge_train_with_client(df_train: pd.DataFrame, df_client: pd.DataFrame) -> pd.DataFrame:
     df_train = df_train.copy()
@@ -42,3 +44,23 @@ def naive_county_weather(df_weather_hist: pd.DataFrame, df_station_to_county: pd
         .mean()
         .reset_index()
     )
+
+def find_relevant_county_stations(
+        df_capitals: pd.DataFrame, 
+        df_weather_hist: pd.DataFrame,
+        max_dist: float = 100.0,
+        on_land_only: bool = True,
+):
+    data = []
+    weather_stations = [Point(*r) for r in np.unique(df_weather_hist[["longitude", "latitude"]], axis=0)]
+    for _, row in df_capitals.iterrows():
+        capital_loc = Point(row["lon"], row["lat"])
+        for station in weather_stations:
+            if (dist := geopy.distance.geodesic((capital_loc.x, capital_loc.y), (station.x, station.y)).km) < max_dist:
+                if on_land_only:
+                    if globe.is_land(lon=station.x, lat=station.y):
+                        data.append([row["county_name"], station.x, station.y, dist])
+                else:
+                    data.append([row["county_name"], station.x, station.y, dist])
+    # 
+    return pd.DataFrame(data, columns=["county_name", "lon", "lat", "dist"])
