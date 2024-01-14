@@ -10,6 +10,7 @@ import polars as pl
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 import geopandas as gpd
 from geopy.geocoders import Nominatim
+import json
 
 @dataclass
 class RawDatasets:
@@ -20,18 +21,21 @@ class RawDatasets:
     weather_forecast: pl.DataFrame
     weather_hist: pl.DataFrame
     weather_station_to_county: pl.DataFrame
+    county_id_to_name: dict[str, str]
 
 
 def read_datasets_from_folder(path: Path) -> RawDatasets:
-    return RawDatasets(
-        data=pl.read_csv(path / "train.csv", columns=constants.data_cols, try_parse_dates=True),
-        client=pl.read_csv(path / "client.csv", columns=constants.client_cols, try_parse_dates=True),
-        gas=pl.read_csv(path / "gas_prices.csv", columns=constants.gas_prices_cols, try_parse_dates=True),
-        electricity=pl.read_csv(path / "electricity_prices.csv", columns=constants.electricity_prices_cols, try_parse_dates=True),
-        weather_forecast=pl.read_csv(path / "forecast_weather.csv", columns=constants.forecast_weather_cols, try_parse_dates=True),
-        weather_hist= pl.read_csv(path / "historical_weather.csv", columns=constants.historical_weather_cols, try_parse_dates=True),
-        weather_station_to_county=pl.read_csv(path / "weather_station_to_county_mapping.csv", columns=constants.location_cols, try_parse_dates=True)
-    )
+    with open(path / "county_id_to_name_map.json", "r") as file:
+        return RawDatasets(
+            data=pl.read_csv(path / "train.csv", columns=constants.data_cols, try_parse_dates=True),
+            client=pl.read_csv(path / "client.csv", columns=constants.client_cols, try_parse_dates=True),
+            gas=pl.read_csv(path / "gas_prices.csv", columns=constants.gas_prices_cols, try_parse_dates=True),
+            electricity=pl.read_csv(path / "electricity_prices.csv", columns=constants.electricity_prices_cols, try_parse_dates=True),
+            weather_forecast=pl.read_csv(path / "forecast_weather.csv", columns=constants.forecast_weather_cols, try_parse_dates=True),
+            weather_hist= pl.read_csv(path / "historical_weather.csv", columns=constants.historical_weather_cols, try_parse_dates=True),
+            weather_station_to_county=pl.read_csv(path / "weather_station_to_county_mapping.csv", columns=constants.location_cols, try_parse_dates=True),
+            county_id_to_name=json.load(file)
+        )
 
 
 def order_ways(list_list_points):

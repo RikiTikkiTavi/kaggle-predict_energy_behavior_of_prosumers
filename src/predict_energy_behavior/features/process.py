@@ -63,4 +63,15 @@ def find_relevant_county_stations(
                 else:
                     data.append([row["county_name"], station.x, station.y, dist])
     # 
-    return pd.DataFrame(data, columns=["county_name", "lon", "lat", "dist"])
+    return pd.DataFrame(data, columns=["county_name", "longitude", "latitude", "dist"])
+
+
+def calculate_weights_of_stations(df: pd.DataFrame, min_weight=0.3):
+    d_max = df["dist"].max()
+    d_ref = d_max / min_weight if min_weight > 0 else d_max
+
+    weights = np.clip(df["dist"]/d_ref, a_min=0.0, a_max=None)
+    weights /= weights.sum()
+    
+    df["weights"] = weights
+    return df

@@ -158,7 +158,7 @@ class SolarOutputRegressor:
 
         # Adjust for Dew in the Morning
         dew_factor = 1.0
-        if "C_dew" in parameters:
+        if "C_dew" in parameters and "hour" in regressors:
             dew_factor = np.where(
                 np.logical_and(regressors["hour"] > 6, regressors["hour"] < 9),
                 parameters["C_dew"],
