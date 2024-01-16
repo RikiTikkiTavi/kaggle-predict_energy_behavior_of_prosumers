@@ -37,6 +37,7 @@ geopy = "^2.4.1"
 prophet = "^1.1.5"
 global-land-mask = "^1.0.0"
 lightgbm = "^4.2.0"
+holidays = "^0.41"
 
 [[tool.poetry.source]]
 name = "torch-cuda12.1"

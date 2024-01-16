@@ -1,11 +1,17 @@
 from dataclasses import dataclass
 
+from pathlib import Path
+
 @dataclass
 class ConfigDir:
-    data: str
-    data_raw: str
-    data_interim: str
-    data_processed: str
+    data: Path
+    data_raw: Path
+    data_interim: Path
+    data_processed: Path
+
+@dataclass
+class ConfigDownloadGeoData:
+    dir: ConfigDir
 
 @dataclass
 class ConfigPrepareData:

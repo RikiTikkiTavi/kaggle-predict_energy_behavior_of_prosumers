@@ -121,9 +121,15 @@ class SolarOutputRegressor:
 
     def _snow_factor(self, parameters: dict[str, float], regressors: pd.DataFrame) -> np.ndarray:
         snow_factor = 1.0
-        if "C_snow_3d" in parameters:
-            snow_factor = np.maximum(0, 1 - parameters["C_snow_3d"] * regressors["snowfall_3d"]**4)
+        if "C_snow" in parameters:
+            snow_factor = np.maximum(0, 1 - parameters["C_snow"] * regressors["snowfall"])
             # snow_factor = np.where(regressors["snowfall"] > parameters["Thr_snow_cov_100"], 0.0, snow_partial_cov_factor)
+        elif "C_snow_magnitude" in parameters and "C_snow_eps" in parameters:
+            snow_factor = np.where(
+                regressors["snowfall"] < 0.5,
+                parameters["C_snow_magnitude"] / (regressors["snowfall"] + parameters["C_snow_eps"]),
+                parameters["C_snow_magnitude"] / (0.5 + parameters["C_snow_eps"])
+            )
         return snow_factor
     
     def _temperature_above_stc_factor(self, parameters: dict[str, float], regressors: pd.DataFrame):
@@ -135,6 +141,17 @@ class SolarOutputRegressor:
                 1.0
             )
         return temperature_eff
+
+    def _dew_factor(self, parameters: dict[str, float], regressors: pd.DataFrame) -> np.ndarray:
+        # Adjust for Dew in the Morning
+        dew_factor = 1.0
+        if "C_dew" in parameters and "hour" in regressors:
+            dew_factor = np.where(
+                np.logical_and(regressors["hour"] > 6, regressors["hour"] < 9),
+                parameters["C_dew"],
+                1
+            )
+        return dew_factor
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         regressors = X
@@ -157,13 +174,7 @@ class SolarOutputRegressor:
         fog_factor = self._fog_factor(parameters, regressors)
 
         # Adjust for Dew in the Morning
-        dew_factor = 1.0
-        if "C_dew" in parameters and "hour" in regressors:
-            dew_factor = np.where(
-                np.logical_and(regressors["hour"] > 6, regressors["hour"] < 9),
-                parameters["C_dew"],
-                1
-            )
+        dew_factor = self._dew_factor(parameters, regressors)
 
         I_adj_total = 0.0
         # adjusted total horizontal irradiance

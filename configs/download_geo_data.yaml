@@ -1,0 +1,11 @@
+# ---------- Overriding hydra default configs ----------
+hydra:
+  job:
+    name: download_geo_data
+    chdir: true
+  run:
+    dir: ${dir.data_processed}/${hydra.job.name}/${hydra.job.override_dirname}
+
+defaults:
+  - _self_
+  - dir: alpha

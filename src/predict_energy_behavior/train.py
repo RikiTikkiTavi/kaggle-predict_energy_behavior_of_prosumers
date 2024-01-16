@@ -38,8 +38,8 @@ def main(cfg: config.ConfigExperiment):
     p_regressor_1.fit(df_features_train_p, df_features_train_p["target"])
     print(f"Score: {p_regressor_1.loss.__name__}={p_regressor_1.optim_result.fun}")
 
-    X_train = df_features_train_p.drop(columns=["target", "datetime"])
-    X_val = df_features_val_p.drop(columns=["target", "datetime"])
+    X_train = df_features_train_p.drop(columns=["target", "datetime", "date", "segment"])
+    X_val = df_features_val_p.drop(columns=["target", "datetime", "date", "segment"])
 
     X_train["model_predictions"] = p_regressor_1.predict(X_train)
     X_val["model_predictions"] = p_regressor_1.predict(X_val)
