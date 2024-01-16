@@ -1,7 +1,7 @@
 # ---------- Overriding hydra default configs ----------
 hydra:
   job:
-    name: train
+    name: base-multi_order
     chdir: true
   run:
     dir: ${dir.outputs}/${phase}/${hydra.job.name}/${hydra.job.override_dirname}
@@ -12,5 +12,7 @@ hydra:
 defaults:
   - _self_
   - dir: alpha
+  - split: temporal
+  - model: multi_order
 
 phase: train
