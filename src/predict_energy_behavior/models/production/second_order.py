@@ -29,11 +29,12 @@ class LGBMSecondOrderModel(SecondOrderModel):
         features: list[str], 
         n_models: int, 
         parameters: dict[str, Any],
-        n_jobs: int = 2
+        n_jobs: int = 2,
+        n_gpus: int = 4
     ) -> None:
         model = VotingRegressor(
             estimators=[
-                (f"regressor_{i}", lgb.sklearn.LGBMRegressor(**parameters, random_state=i))
+                (f"regressor_{i}", lgb.sklearn.LGBMRegressor(**parameters, random_state=i, gpu_device_id = i % n_gpus))
                 for i in range(n_models)
             ],
             n_jobs=n_jobs

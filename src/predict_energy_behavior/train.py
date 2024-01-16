@@ -60,24 +60,36 @@ def main(cfg: config.ConfigExperiment):
         "max_depth": 24,
         "num_leaves": 490,
         "min_data_in_leaf": 48,
-        "device": "cuda"
+        "device": "cuda",
+        "n_jobs": 6
     }
 
     model_p = multi_order_regression.MultiOrderRegression(
-        first_order_model=solar_output_regressor.SolarOutputRegressor(),
+        first_order_model=solar_output_regressor.GroupedSolarOutputRegressor(
+            group_columns=("product_type",),
+            n_processes=12,
+        ),
         second_order_model=second_order.LGBMSecondOrderModel(
-            features=features_second_order, n_models=3, parameters=second_order_params, n_jobs=1,
+            features=features_second_order, 
+            n_models=4, 
+            parameters=second_order_params, 
+            n_jobs=4,
+            n_gpus=4
         ),
     )
 
     df_train = df_features.loc[df_features["datetime"] < val_start_date]
     df_val = df_features.loc[df_features["datetime"] >= val_start_date]
 
+    df_p = df_features.loc[df_features["is_consumption"] == 0]
     df_train_p = df_train[df_train["is_consumption"] == 0]
     df_val_p = df_val[df_val["is_consumption"] == 0]
 
     _logger.info(f"Fitting model ...")
-    model_p.fit(df_train_p, df_train_p["target"])
+    model_p.fit(
+        d_1=(df_p, df_p["target"]),
+        d_2=(df_train_p, df_train_p["target"])
+    )
 
     _logger.info("Validation ...")
     _logger.info(
@@ -89,8 +101,13 @@ def main(cfg: config.ConfigExperiment):
 
     path_model_p = Path.cwd() / "model_p.pickle"
     _logger.info(f"Saving production model to {path_model_p} ...")
-    with open(path_model_p):
-        pickle.dump(model_p)
+    with open(path_model_p, "wb") as file:
+        pickle.dump(model_p, file)
+
+    #df_train_c = df_train.loc[df_train["is_consumption"] == 1]
+    #df_val_c = df_val[df_val["is_consumption"] == 1]
+
+    #model_c = second_order.LGBMSecondOrderModel()
 
     return val_score
 

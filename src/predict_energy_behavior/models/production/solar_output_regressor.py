@@ -324,6 +324,8 @@ class SolarOutputRegressor:
 
         self.weights = dict(zip(self.weights.keys(), self.optim_result.x))
 
+        self.N = len(X)
+
         if not self.optim_result.success:
             raise Exception("Optimization failed: " + self.optim_result.message)
 
@@ -337,10 +339,19 @@ class SolarOutputRegressor:
         model.fit(X, y)
         return model
 
+    def __str__(self):
+        return (
+            f"---\n:"
+            f"{super().__str__()} with:\n"
+            f"Weights: {self.weights}\n"
+            f"Score: {self.loss}={self.optim_result.fun if self.optim_result is not None else None}\n"
+            "---"
+        )
+
 
 class GroupedSolarOutputRegressor:
     _group_to_model: dict[tuple[str, ...] | str, SolarOutputRegressor]
-    
+
     def __init__(
         self,
         group_columns: Sequence[str] = ("product_type",),
@@ -351,10 +362,25 @@ class GroupedSolarOutputRegressor:
         self._regressor_params = regressor_params
         self._n_processes = n_processes
 
+    def _predict_average(self, df: pd.DataFrame) -> np.ndarray:
+        return np.mean([model.predict(df) for model in self._group_to_model.values()], axis=0)
+
+    def _predict_group(
+        self, group: tuple[str, ...] | str, df: pd.DataFrame
+    ) -> np.ndarray:
+        if not isinstance(group, tuple):
+            group = (group,)
+        
+        if group in self._group_to_model:
+            return self._group_to_model[group].predict(df)
+        else:
+            print(f"!!!!!!!!!!!!!!!!!!!!!!!!! No group: {group} => predicting average")
+            return self._predict_average(df)
+
     def predict(self, X: pd.DataFrame) -> ndarray:
         X = X.copy()
         X["predictions"] = X.groupby(self._group_columns, group_keys=False).apply(
-            lambda df: self._group_to_model[df.name].predict(df)
+            lambda df: self._predict_group(df.name, df)
         )
         return X["predictions"].to_numpy()
 
@@ -369,6 +395,22 @@ class GroupedSolarOutputRegressor:
             ]
             models = pool.starmap(SolarOutputRegressor.create_and_fit, args)
 
+        self._N = len(X)
         self._group_to_model = dict(zip(group_to_df.keys(), models))
 
         return self
+
+    def _train_score(self):
+        s = 0.0
+        for model in self._group_to_model.values():
+            s += model.optim_result.fun * model.N / self._N 
+        return s
+
+    def __str__(self) -> str:
+        s = ""
+        for g, model in self._group_to_model.items():
+            s += "\n"
+            s += "************"
+            s += f"Model of group={g}: \n{str(model)}"
+        s += f"\n************\nScore: {self._train_score()}\n************\n"
+        return s

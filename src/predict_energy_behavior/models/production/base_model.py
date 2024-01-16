@@ -7,10 +7,10 @@ import pandas as pd
 class ProductionRegressionBase(abc.ABC):
     @abc.abstractmethod
     def predict(
-        self, regressors: pd.DataFrame, parameters: dict[str, float]
+        self, X: pd.DataFrame
     ) -> np.ndarray:
         pass
 
     @abc.abstractclassmethod
-    def fit(self, X: pd.DataFrame, y: np.ndarray):
+    def fit(self, X: pd.DataFrame, y: np.ndarray) -> "ProductionRegressionBase":
         pass

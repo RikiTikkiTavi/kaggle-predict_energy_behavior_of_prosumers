@@ -1,3 +1,4 @@
+from typing import overload
 import numpy as np
 import pandas as pd
 from predict_energy_behavior.models.production.base_model import ProductionRegressionBase
@@ -11,7 +12,7 @@ class MultiOrderRegression(ProductionRegressionBase):
 
     def __init__(
             self,
-            first_order_model: SolarOutputRegressor,
+            first_order_model: ProductionRegressionBase,
             second_order_model: ProductionRegressionBase 
     ) -> None:
         self._first_order_model = first_order_model
@@ -33,20 +34,49 @@ class MultiOrderRegression(ProductionRegressionBase):
 
         return results_first_order + self._second_order_model.predict(X)
 
-    def fit(self, X: pd.DataFrame, y: np.ndarray) -> "MultiOrderRegression":
+    def _fit_with_separate_dfs(self, d_1: tuple[pd.DataFrame, np.ndarray], d_2: tuple[pd.DataFrame, np.ndarray]):
+        _logger.info("Fit 1 order ...")
+        self._first_order_model.fit(*d_1)
+        _logger.info(f"Fit 1 order model:\n{str(self._first_order_model)}")
+        
+        X = d_2[0].copy()
+        results_first_order = self._first_order_model.predict(X)
+        X["predictions_first_order"] = results_first_order
+        target_second_order = d_2[1] - results_first_order
+        
+        _logger.info("Fit 2 order ...")
+        self._second_order_model.fit(X, target_second_order)
+
+        return self
+
+    def _fit_with_same_df(self, X: pd.DataFrame, y: np.ndarray):
         X = X.copy()
 
         _logger.info("Fit 1 order ...")
         self._first_order_model.fit(X, y)
-        _logger.info(f'1 order model train metric: {self._first_order_model.loss.__name__}={self._first_order_model.optim_result.fun}')
-        _logger.info(f'1 order model weights: {self._first_order_model.weights}')
+        _logger.info(f"Fit 1 order model:\n{str(self._first_order_model)}")
         
         results_first_order = self._first_order_model.predict(X)
+
         X["predictions_first_order"] = results_first_order
         target_second_order = y - results_first_order
         
         _logger.info("Fit 2 order ...")
         self._second_order_model.fit(X, target_second_order)
+
+        return self
+
+    @overload
+    def fit(self, d_1: tuple[pd.DataFrame, np.ndarray], d_2: tuple[pd.DataFrame, np.ndarray]) -> "MultiOrderRegression": ...
+
+    @overload
+    def fit(self, X: pd.DataFrame, y: np.ndarray) -> "MultiOrderRegression": ...
+
+    def fit(self, **kwargs) -> "MultiOrderRegression":
+        if "d_1" in kwargs and "d_2" in kwargs:
+            self._fit_with_separate_dfs(**kwargs)
+        else:
+            self._fit_with_same_df(**kwargs)
 
         return self
 
