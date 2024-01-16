@@ -130,6 +130,7 @@ class SolarOutputRegressor:
                 parameters["C_snow_magnitude"] / (regressors["snowfall"] + parameters["C_snow_eps"]),
                 parameters["C_snow_magnitude"] / (0.5 + parameters["C_snow_eps"])
             )
+            snow_factor[regressors["snowfall"] < parameters["C_snow_eps"]] = 1.0
         return snow_factor
     
     def _temperature_above_stc_factor(self, parameters: dict[str, float], regressors: pd.DataFrame):
