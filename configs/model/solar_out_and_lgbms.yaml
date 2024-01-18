@@ -1,0 +1,174 @@
+_target_: predict_energy_behavior.models.joined_model.JoinedModel
+_recursive_: True
+model_p:
+  _target_: predict_energy_behavior.models.production.two_orders_regression.TwoOrdersRegression
+  _recursive_: True
+  first_order_model:
+    _target_: predict_energy_behavior.models.production.solar_output_regressor.GroupedSolarOutputRegressor
+    group_columns:
+      - "product_type"
+    n_processes: 12
+  second_order_model:
+    _target_: predict_energy_behavior.models.production.second_order.LGBMSecondOrderModel
+    n_models: 8
+    n_jobs: 8
+    n_gpus: 8
+    parameters:
+      n_estimators: 1000
+      learning_rate: 0.06
+      colsample_bytree: 0.9
+      colsample_bynode: 0.6
+      lambda_l1: 3.5
+      lambda_l2: 1.5
+      max_depth: 16
+      num_leaves: 500
+      min_data_in_leaf: 50
+      objective: "regression_l1"
+      device: "cpu"
+      n_jobs: 12
+    features: [
+      "temperature",
+      "dewpoint",
+      "rain",
+      "snowfall",
+      "surface_pressure",
+      "cloudcover_total",
+      "cloudcover_low",
+      "cloudcover_mid",
+      "cloudcover_high",
+      "windspeed_10m",
+      "winddirection_10m",
+      "shortwave_radiation",
+      "direct_solar_radiation",
+      "diffuse_radiation",
+      "sin(hour)",
+      "cos(hour)",
+      "sin(dayofyear)",
+      "cos(dayofyear)",
+      "county",
+      "is_business",
+      "product_type",
+      "installed_capacity",
+      "predictions_first_order",
+    ]
+model_c:
+  _target_: predict_energy_behavior.models.production.second_order.LGBMSecondOrderModel
+  n_models: 8
+  n_gpus: 8
+  features: [
+    "county",
+    "is_business",
+    "product_type",
+    "is_consumption",
+    "day",
+    "weekday",
+    "month",
+    "year",
+    "sin(dayofyear)",
+    "cos(dayofyear)",
+    "sin(hour)",
+    "cos(hour)",
+    "eic_count",
+    "installed_capacity",
+    "temperature",
+    "dewpoint",
+    "rain",
+    "snowfall",
+    "surface_pressure",
+    "cloudcover_total",
+    "cloudcover_low",
+    "cloudcover_mid",
+    "cloudcover_high",
+    "windspeed_10m",
+    "winddirection_10m",
+    "shortwave_radiation",
+    "direct_solar_radiation",
+    "diffuse_radiation",
+    "temperature_historical_local_24h",
+    "dewpoint_historical_local_24h",
+    "rain_historical_local_24h",
+    "snowfall_historical_local_24h",
+    "surface_pressure_historical_local_24h",
+    "cloudcover_total_historical_local_24h",
+    "cloudcover_low_historical_local_24h",
+    "cloudcover_mid_historical_local_24h",
+    "cloudcover_high_historical_local_24h",
+    "windspeed_10m_historical_local_24h",
+    "winddirection_10m_historical_local_24h",
+    "shortwave_radiation_historical_local_24h",
+    "direct_solar_radiation_historical_local_24h",
+    "diffuse_radiation_historical_local_24h",
+    "temperature_historical_local_48h",
+    "dewpoint_historical_local_48h",
+    "rain_historical_local_48h",
+    "snowfall_historical_local_48h",
+    "surface_pressure_historical_local_48h",
+    "cloudcover_total_historical_local_48h",
+    "cloudcover_low_historical_local_48h",
+    "cloudcover_mid_historical_local_48h",
+    "cloudcover_high_historical_local_48h",
+    "windspeed_10m_historical_local_48h",
+    "winddirection_10m_historical_local_48h",
+    "shortwave_radiation_historical_local_48h",
+    "direct_solar_radiation_historical_local_48h",
+    "diffuse_radiation_historical_local_48h",
+    "temperature_historical_local_168h",
+    "dewpoint_historical_local_168h",
+    "rain_historical_local_168h",
+    "snowfall_historical_local_168h",
+    "surface_pressure_historical_local_168h",
+    "cloudcover_total_historical_local_168h",
+    "cloudcover_low_historical_local_168h",
+    "cloudcover_mid_historical_local_168h",
+    "cloudcover_high_historical_local_168h",
+    "windspeed_10m_historical_local_168h",
+    "winddirection_10m_historical_local_168h",
+    "shortwave_radiation_historical_local_168h",
+    "direct_solar_radiation_historical_local_168h",
+    "diffuse_radiation_historical_local_168h",
+    "target_48h",
+    "target_72h",
+    "target_96h",
+    "target_120h",
+    "target_144h",
+    "target_168h",
+    "target_192h",
+    "target_216h",
+    "target_240h",
+    "target_264h",
+    "target_288h",
+    "target_312h",
+    "target_336h",
+    "target_all_type_sum_48h",
+    "target_all_county_type_sum_48h",
+    "target_all_type_sum_72h",
+    "target_all_county_type_sum_72h",
+    "target_all_type_sum_168h",
+    "target_all_county_type_sum_168h",
+    "target_all_type_sum_336h",
+    "target_all_county_type_sum_336h",
+    "target_mean",
+    "target_std",
+    "target_ratio_168_336",
+    "target_ratio_48_216",
+    "target_ratio_72_240",
+    "target_ratio_48_72",
+    "target_all_type_sum_ratio_48_72",
+    "target_all_type_sum_ratio_168_336",
+    "target_all_county_type_sum_ratio_48_72",
+    "target_all_county_type_sum_ratio_168_336",
+    "is_country_holiday",
+  ]
+  parameters:
+    n_estimators: 1000
+    learning_rate: 0.06
+    colsample_bytree: 0.9
+    colsample_bynode: 0.6
+    lambda_l1: 3.5
+    lambda_l2: 1.5
+    max_depth: 16
+    num_leaves: 500
+    min_data_in_leaf: 50
+    objective: "regression_l1"
+    device: "cpu"
+    n_jobs: 12

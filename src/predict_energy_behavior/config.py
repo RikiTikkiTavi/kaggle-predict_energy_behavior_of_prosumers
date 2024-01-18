@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 @dataclass
 class ConfigDir:
@@ -24,13 +24,11 @@ class ConfigSplit:
     val_start_date: str
 
 @dataclass
-class ConfigModel:
-    first_order_model: Any
-    second_order_model: Any
-
-@dataclass
 class ConfigExperiment:
     dir: ConfigDir
     phase: str
+    mlflow_tracking_uri: Optional[str]
+    exp_name: str
+    run_name: str
     split: ConfigSplit
-    model: ConfigModel
+    model: Any

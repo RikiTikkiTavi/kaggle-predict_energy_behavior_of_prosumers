@@ -3,113 +3,76 @@ import pickle
 import sklearn
 from sklearn.ensemble import VotingRegressor
 import predict_energy_behavior.config as config
-import predict_energy_behavior.models.production.solar_output_regressor as solar_output_regressor
-import predict_energy_behavior.models.production.multi_order_regression as multi_order_regression
-import predict_energy_behavior.models.production.second_order as second_order
+import predict_energy_behavior.models.joined_model as joined_model
+import predict_energy_behavior.utils as utils
 import pandas as pd
 from pathlib import Path
-import lightgbm as lgb
 import hydra
+import mlflow
+import lightgbm
 
 _logger = logging.getLogger(__name__)
 
 
+def select_consumption(df: pd.DataFrame, is_consumption: bool = False) -> pd.DataFrame:
+    return df.loc[df["is_consumption"] == int(is_consumption)]
+
+
 @hydra.main(config_path="../../configs", config_name="train", version_base="1.3")
 def main(cfg: config.ConfigExperiment):
-    path_data_processed = Path(cfg.dir.data_processed)
-    path_df = path_data_processed / cfg.phase / "make_features" / "df_features.parquet"
+    lightgbm.register_logger(_logger)
 
-    _logger.info(f"Reading data from {path_df} ...")
-    df_features = pd.read_parquet(path_df).dropna()
-    val_start_date = pd.Timestamp.fromisoformat(cfg.split.val_start_date)
+    if cfg.mlflow_tracking_uri is not None:
+        mlflow.set_tracking_uri(cfg.mlflow_tracking_uri)
 
-    features_second_order = [
-        "temperature",
-        "dewpoint",
-        "rain",
-        "snowfall",
-        "surface_pressure",
-        "cloudcover_total",
-        "cloudcover_low",
-        "cloudcover_mid",
-        "cloudcover_high",
-        "windspeed_10m",
-        "winddirection_10m",
-        "shortwave_radiation",
-        "direct_solar_radiation",
-        "diffuse_radiation",
-        "sin(hour)",
-        "cos(hour)",
-        "sin(dayofyear)",
-        "cos(dayofyear)",
-        "county",
-        "is_business",
-        "product_type",
-        "installed_capacity",
-        "predictions_first_order",
-    ]
+    experiment = mlflow.set_experiment(cfg.exp_name)
+    with mlflow.start_run(
+        run_name=cfg.run_name, experiment_id=experiment.experiment_id
+    ):
+        mlflow.log_params(utils.flatten_dict(cfg))
 
-    second_order_params = {
-        "objective": "regression_l1",
-        "n_estimators": 2000,
-        "learning_rate": 0.008,
-        "colsample_bytree": 0.8,
-        "colsample_bynode": 0.5,
-        "lambda_l1": 3.4,
-        "lambda_l2": 1.4,
-        "max_depth": 24,
-        "num_leaves": 490,
-        "min_data_in_leaf": 48,
-        "device": "cuda",
-        "n_jobs": 6
-    }
+        path_data_processed = Path(cfg.dir.data_processed)
+        path_df = (
+            path_data_processed / cfg.phase / "make_features" / "df_features.parquet"
+        )
 
-    model_p = multi_order_regression.MultiOrderRegression(
-        first_order_model=solar_output_regressor.GroupedSolarOutputRegressor(
-            group_columns=("product_type",),
-            n_processes=12,
-        ),
-        second_order_model=second_order.LGBMSecondOrderModel(
-            features=features_second_order, 
-            n_models=4, 
-            parameters=second_order_params, 
-            n_jobs=4,
-            n_gpus=4
-        ),
-    )
+        _logger.info(f"Reading data from {path_df} ...")
+        df_features = pd.read_parquet(path_df).dropna()
+        val_start_date = pd.Timestamp.fromisoformat(cfg.split.val_start_date)
 
-    df_train = df_features.loc[df_features["datetime"] < val_start_date]
-    df_val = df_features.loc[df_features["datetime"] >= val_start_date]
+        model: joined_model.JoinedModel = hydra.utils.instantiate(cfg.model)
 
-    df_p = df_features.loc[df_features["is_consumption"] == 0]
-    df_train_p = df_train[df_train["is_consumption"] == 0]
-    df_val_p = df_val[df_val["is_consumption"] == 0]
+        df_train = df_features.loc[df_features["datetime"] < val_start_date]
+        df_val = df_features.loc[df_features["datetime"] >= val_start_date]
 
-    _logger.info(f"Fitting model ...")
-    model_p.fit(
-        d_1=(df_p, df_p["target"]),
-        d_2=(df_train_p, df_train_p["target"])
-    )
+        model.fit(
+            train_tups=(
+                (df_features, df_features["target"]),
+                (df_train, df_train["target"]),
+                (df_train, df_train["target"]),
+            )
+        )
 
-    _logger.info("Validation ...")
-    _logger.info(
-        f"Val MAE (1): {sklearn.metrics.mean_absolute_error(model_p.first_order.predict(df_val_p), df_val_p['target'])}"
-    )
-    preds_val = model_p.predict(df_val_p)
-    val_score = sklearn.metrics.mean_absolute_error(preds_val, df_val_p["target"])
-    _logger.info(f"Val MAE (total): {val_score}")
+        _logger.info("Validation ...")
 
-    path_model_p = Path.cwd() / "model_p.pickle"
-    _logger.info(f"Saving production model to {path_model_p} ...")
-    with open(path_model_p, "wb") as file:
-        pickle.dump(model_p, file)
+        metrics = model.evaluate(
+            df_val,
+            df_val["target"],
+            metrics={"val_MAE": sklearn.metrics.mean_absolute_error},
+        )
 
-    #df_train_c = df_train.loc[df_train["is_consumption"] == 1]
-    #df_val_c = df_val[df_val["is_consumption"] == 1]
+        for submodel_key, submodel_metrics in metrics.items():
+            for metric_name, metric_value in submodel_metrics.items():
+                mlflow.log_metric(key=f"{submodel_key}/{metric_name}", value=metric_value, step=0)
 
-    #model_c = second_order.LGBMSecondOrderModel()
+        _logger.info(metrics)
 
-    return val_score
+        path_model = Path.cwd() / "model_joined.pickle"
+        _logger.info(f"Saving consumption model to {path_model} ...")
+        with open(path_model, "wb") as file:
+            pickle.dump(model, file)
+
+        return metrics["total"]["val_MAE"]
 
 
 if __name__ == "__main__":
