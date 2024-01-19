@@ -53,26 +53,45 @@ def main(cfg: config.ConfigExperiment):
             )
         )
 
-        _logger.info("Validation ...")
-
-        metrics = model.evaluate(
-            df_val,
-            df_val["target"],
-            metrics={"val_MAE": sklearn.metrics.mean_absolute_error},
-        )
-
-        for submodel_key, submodel_metrics in metrics.items():
-            for metric_name, metric_value in submodel_metrics.items():
-                mlflow.log_metric(key=f"{submodel_key}/{metric_name}", value=metric_value, step=0)
-
-        _logger.info(metrics)
-
         path_model = Path.cwd() / "model_joined.pickle"
         _logger.info(f"Saving consumption model to {path_model} ...")
         with open(path_model, "wb") as file:
             pickle.dump(model, file)
 
-        return metrics["total"]["val_MAE"]
+        _logger.info("Validation on historical weather ...")
+
+        metrics_hist = model.evaluate(
+            df_val,
+            df_val["target"],
+            metrics={"hist_val_MAE": sklearn.metrics.mean_absolute_error},
+        )
+
+        for submodel_key, submodel_metrics in metrics_hist.items():
+            for metric_name, metric_value in submodel_metrics.items():
+                mlflow.log_metric(key=f"{submodel_key}/{metric_name}", value=metric_value, step=0)
+
+        _logger.info(metrics_hist)
+
+        _logger.info("Validation on forecast ...")
+
+        features = df_val.columns
+        historical_weather_features = [f for f in features if "historical_0h" in f]
+        corresponding_weather_features  = [f.replace("_historical_0h", "") for f in historical_weather_features]
+        df_val = df_val.drop(columns=historical_weather_features)
+        df_val = df_val.rename({f_c: f_h for f_h, f_c in zip(historical_weather_features, corresponding_weather_features)}, axis=1)
+        df_val["shortwave_radiation"] = df_val["surface_solar_radiation_downwards"] / 2
+
+        _logger.info(list(df_val.columns))
+
+        metrics_forecast = model.evaluate(
+            df_val,
+            df_val["target"],
+            metrics={"forecast_val_MAE": sklearn.metrics.mean_absolute_error},
+        )
+
+        _logger.info(metrics_forecast)
+
+        return metrics_hist["total"]["hist_val_MAE"]
 
 
 if __name__ == "__main__":

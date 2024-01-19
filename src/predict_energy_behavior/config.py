@@ -32,3 +32,8 @@ class ConfigExperiment:
     run_name: str
     split: ConfigSplit
     model: Any
+
+@dataclass
+class ConfigInference:
+    dir: ConfigDir
+    path_model: str

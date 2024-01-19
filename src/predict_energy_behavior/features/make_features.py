@@ -36,10 +36,13 @@ def prepare_data(cfg: config.ConfigPrepareData):
     _logger.info("Processing data ...")
     df: pd.DataFrame = FeaturesGenerator(ds, cfg).generate_features(ds.df_data)
 
+    _logger.info(f"Features: {list(df.columns)}")
+
     path_data_processed.mkdir(exist_ok=True, parents=True)
     path_df_train = path_data_processed / "df_features.parquet"
     _logger.info(f"Saving processed data to {path_df_train} ...")
     df.to_parquet(path_df_train)
+    
 
 
 if __name__ == "__main__":

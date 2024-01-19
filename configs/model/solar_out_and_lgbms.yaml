@@ -11,8 +11,7 @@ model_p:
     regressors: 
       temperature: "temperature_historical_0h"
       dewpoint: "dewpoint_historical_0h"
-      diffuse_radiation: "diffuse_radiation_historical_0h"
-      direct_solar_radiation: "direct_solar_radiation_historical_0h"
+      shortwave_radiation: "shortwave_radiation"
       snowfall: "snowfall_historical_0h"
       rain: "rain_historical_0h"
       windspeed_10m: "windspeed_10m_historical_0h"
@@ -24,7 +23,7 @@ model_p:
     n_jobs: 8
     n_gpus: 8
     parameters:
-      n_estimators: 1000
+      n_estimators: 100
       learning_rate: 0.06
       colsample_bytree: 0.9
       colsample_bynode: 0.6
@@ -45,8 +44,7 @@ model_p:
       "cloudcover_low_historical_0h",
       "cloudcover_mid_historical_0h",
       "cloudcover_high_historical_0h",
-      "direct_solar_radiation_historical_0h",
-      "diffuse_radiation_historical_0h",
+      "shortwave_radiation",
       "windspeed_10m_historical_0h",
       "10_metre_u_wind_component_historical_0h",
       "10_metre_v_wind_component_historical_0h",
@@ -169,7 +167,7 @@ model_c:
     "is_country_holiday"
   ]
   parameters:
-    n_estimators: 1000
+    n_estimators: 100
     learning_rate: 0.06
     colsample_bytree: 0.9
     colsample_bynode: 0.6

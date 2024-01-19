@@ -102,15 +102,17 @@ class JoinedModel(RegressionBase[Literal[2]]):
         y = pd.Series(y, index=X.index)
 
         X_p = select_consumption(X, False)
-        preds_p = pd.Series(self._model_p.predict(X_p), index=X_p.index)
+        preds_p_1 = pd.Series(self._model_p.get_model(1).predict(X_p))
+        preds_p_2 = pd.Series(self._model_p.predict(X_p), index=X_p.index)
 
         X_c = select_consumption(X, True)
         preds_c = pd.Series(self._model_c.predict(X_c), index=X_c.index)
 
-        preds = pd.concat([preds_p, preds_c]).loc[X.index].to_numpy()
+        preds = pd.concat([preds_p_2, preds_c]).loc[X.index].to_numpy()
 
         return {
-            "production": {key: metric(preds_p, y.loc[X_p.index]) for key, metric in metrics.items()},
+            "production_1": {key: metric(preds_p_1, y.loc[X_p.index]) for key, metric in metrics.items()},
+            "production_2": {key: metric(preds_p_2, y.loc[X_p.index]) for key, metric in metrics.items()},
             "consumption": {key: metric(preds_c, y.loc[X_c.index]) for key, metric in metrics.items()},
             "total": {key: metric(preds, y) for key, metric in metrics.items()}
         }

@@ -4,7 +4,7 @@ hydra:
     name: eb-${run_name}
     chdir: true
   run:
-    dir: ${dir.outputs}/${phase}/${run_name}/${hydra.job.override_dirname}
+    dir: ${dir.outputs}/${phase}/${run_name}/${now:%Y-%m-%d_%H-%M-%S}/${hydra.job.override_dirname}
   sweep:
     dir: ${dir.output_dir}/${hydra.job.name}/
     subdir: ${hydra.job.override_dirname}
