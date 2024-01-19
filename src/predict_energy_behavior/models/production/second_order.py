@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal, Optional
 from mercantile import feature
 import numpy as np
 import pandas as pd
@@ -9,10 +9,20 @@ from sklearn.ensemble import VotingRegressor
 import lightgbm as lgb
 
 
-class SecondOrderModel(ProductionRegressionBase):
+class SecondOrderModel(ProductionRegressionBase[Literal[1]]):
     def __init__(self, features: list[str], model: VotingRegressor) -> None:
         self.features = features
         self.model = model
+
+    def set_regressors(
+        self: "ProductionRegressionBase[Literal[1]]", 
+        regressors: dict[str, Optional[str]]
+    ):
+        self.features = list(regressors.values())
+
+    def get_model(self, order: int):
+        assert order == 1
+        return self
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         return self.model.predict(X[self.features])

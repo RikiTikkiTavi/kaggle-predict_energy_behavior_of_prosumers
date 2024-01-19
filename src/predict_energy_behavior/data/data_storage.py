@@ -45,6 +45,21 @@ class DataStorage:
         "snowfall",
         "total_precipitation",
     ]
+    forecast_weather_raw_features = [
+        "temperature",
+        "dewpoint",
+        "cloudcover_high",
+        "cloudcover_low",
+        "cloudcover_mid",
+        "cloudcover_total",
+        "10_metre_u_wind_component",
+        "10_metre_v_wind_component",
+        "direct_solar_radiation",
+        "surface_solar_radiation_downwards",
+        "snowfall",
+        "total_precipitation"
+    ]
+
     historical_weather_cols = [
         "datetime",
         "temperature",
@@ -63,6 +78,23 @@ class DataStorage:
         "diffuse_radiation",
         "latitude",
         "longitude",
+    ]
+    
+    historical_weather_raw_features = [
+        "temperature",
+        "dewpoint",
+        "rain",
+        "snowfall",
+        "surface_pressure",
+        "cloudcover_total",
+        "cloudcover_low",
+        "cloudcover_mid",
+        "cloudcover_high",
+        "windspeed_10m",
+        "winddirection_10m",
+        "shortwave_radiation",
+        "direct_solar_radiation",
+        "diffuse_radiation",
     ]
     location_cols = ["longitude", "latitude", "county"]
     target_cols = [
@@ -112,9 +144,9 @@ class DataStorage:
             columns=self.location_cols,
             try_parse_dates=True,
         )
-        #self.df_data = self.df_data.filter(
+        # self.df_data = self.df_data.filter(
         #    pl.col("datetime") >= pd.to_datetime("2022-01-01")
-        #)
+        # )
         self.df_target = self.df_data.select(self.target_cols)
 
         self.df_capitals = pl.read_csv(path_data_geo / "capitals.csv")
@@ -125,7 +157,7 @@ class DataStorage:
             county_name_to_id = {
                 n.lower().capitalize(): int(i) for i, n in county_id_to_name.items()
             }
-        
+
         self.df_capitals = self.df_capitals.with_columns(
             pl.col("county_name").map_dict(county_name_to_id).alias("county")
         ).drop("county_name")

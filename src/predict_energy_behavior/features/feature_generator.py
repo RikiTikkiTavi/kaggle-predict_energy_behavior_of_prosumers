@@ -12,12 +12,9 @@ from shapely.geometry import Point, Polygon
 import geopy.distance
 from global_land_mask import globe
 
+
 class FeaturesGenerator:
-    def __init__(
-            self, 
-            data_storage: DataStorage,
-            cfg: config.ConfigPrepareData
-        ):
+    def __init__(self, data_storage: DataStorage, cfg: config.ConfigPrepareData):
         self.data_storage = data_storage
         self.estonian_holidays = list(
             holidays.country_holidays("EE", years=range(2021, 2026)).keys()
@@ -78,150 +75,107 @@ class FeaturesGenerator:
         )
         return df_features
 
-    def _add_forecast_weather_features(self, df_features):
-        df_forecast_weather = self.data_storage.df_forecast_weather
-        df_weather_station_to_county_mapping = (
-            self.data_storage.df_weather_station_to_county_mapping
-        )
+    def _join_weather_with_counties(
+            self, 
+            df_weather: pl.DataFrame,
+            weather_columns: list[str],
+        ):
 
-        df_forecast_weather = (
-            df_forecast_weather.rename({"forecast_datetime": "datetime"})
-            .filter((pl.col("hours_ahead") >= 22) & pl.col("hours_ahead") <= 45)
-            .drop("hours_ahead")
-            .with_columns(
-                pl.col("latitude").cast(pl.datatypes.Float32),
-                pl.col("longitude").cast(pl.datatypes.Float32),
-            )
-            .join(
-                df_weather_station_to_county_mapping,
-                how="left",
-                on=["longitude", "latitude"],
-            )
-            .drop("longitude", "latitude")
-        )
-
-        df_forecast_weather_date = (
-            df_forecast_weather.group_by("datetime").mean().drop("county")
-        )
-
-        df_forecast_weather_local = (
-            df_forecast_weather.filter(pl.col("county").is_not_null())
-            .group_by("county", "datetime")
-            .mean()
-        )
-
-        for hours_lag in [0, 7 * 24]:
-            df_features = df_features.join(
-                df_forecast_weather_date.with_columns(
-                    pl.col("datetime") + pl.duration(hours=hours_lag)
-                ),
-                on="datetime",
-                how="left",
-                suffix=f"_forecast_{hours_lag}h",
-            )
-            df_features = df_features.join(
-                df_forecast_weather_local.with_columns(
-                    pl.col("datetime") + pl.duration(hours=hours_lag)
-                ),
-                on=["county", "datetime"],
-                how="left",
-                suffix=f"_forecast_local_{hours_lag}h",
-            )
-
-        return df_features
-
-    def _join_weather_with_counties(self, df_weather: pl.DataFrame):
-        
-        weather_columns = [
-            "temperature",
-            "dewpoint",
-            "rain",
-            "snowfall",
-            "surface_pressure",
-            "cloudcover_total",
-            "cloudcover_low",
-            "cloudcover_mid",
-            "cloudcover_high",
-            "windspeed_10m",
-            "winddirection_10m",
-            "shortwave_radiation",
-            "direct_solar_radiation",
-            "diffuse_radiation",
-        ]
-        
         def calculate_weights_of_stations(df: pl.DataFrame, min_weight=0.3):
             d_max = df["dist"].max()
             d_ref = d_max / min_weight if min_weight > 0 else d_max
 
-            df = (
-                df
-                .with_columns(
-                    (pl.col("dist") / d_ref).clip(lower_bound=0.0, upper_bound=None).alias("weights")
-                )
-                .with_columns(
-                    (pl.col("weights") / pl.col("weights").sum()).alias("weights")
-                )
+            df = df.with_columns(
+                (pl.col("dist") / d_ref)
+                .clip(lower_bound=0.0, upper_bound=None)
+                .alias("weights")
+            ).with_columns(
+                (pl.col("weights") / pl.col("weights").sum()).alias("weights")
             )
 
             return df
-        
+
         def find_relevant_county_stations(
-            df_capitals: pl.DataFrame, 
+            df_capitals: pl.DataFrame,
             df_weather_hist: pl.DataFrame,
             max_dist: float = 100.0,
             on_land_only: bool = True,
         ):
             # Creating unique weather stations
-            weather_stations = df_weather_hist.select(["longitude", "latitude"]).unique().to_numpy()
+            weather_stations = (
+                df_weather_hist.select(["longitude", "latitude"]).unique().to_numpy()
+            )
             weather_stations = [Point(lon, lat) for lon, lat in weather_stations]
 
             # Function to calculate distances and filter based on conditions
             def filter_stations(capital_row):
-                lat, lon, county = capital_row["latitude"], capital_row["longitude"], capital_row["county"]
+                lat, lon, county = (
+                    capital_row["latitude"],
+                    capital_row["longitude"],
+                    capital_row["county"],
+                )
                 capital_loc = Point(lon, lat)
                 data = []
                 for station in weather_stations:
-                    dist = geopy.distance.geodesic((capital_loc.x, capital_loc.y), (station.x, station.y)).km
+                    dist = geopy.distance.geodesic(
+                        (capital_loc.x, capital_loc.y), (station.x, station.y)
+                    ).km
                     if dist < max_dist:
-                        if on_land_only and not globe.is_land(lon=station.x, lat=station.y):
+                        if on_land_only and not globe.is_land(
+                            lon=station.x, lat=station.y
+                        ):
                             continue
                         data.append((county, station.x, station.y, dist))
                 return data
 
             # Apply the function to each row of df_capitals and flatten the result
-            result_rows = list(chain.from_iterable(filter_stations(row) for row in df_capitals.rows(named=True)))
-                
-            return pl.DataFrame(result_rows, schema={"county": pl.Int64, "longitude": pl.Float32, "latitude": pl.Float32, "dist": pl.Float64})
+            result_rows = list(
+                chain.from_iterable(
+                    filter_stations(row) for row in df_capitals.rows(named=True)
+                )
+            )
+
+            return pl.DataFrame(
+                result_rows,
+                schema={
+                    "county": pl.Int64,
+                    "longitude": pl.Float32,
+                    "latitude": pl.Float32,
+                    "dist": pl.Float64,
+                },
+            )
 
         def average_weather_based_on_weights(df: pl.DataFrame):
             return df.select(
                 pl.col("datetime").first(),
                 pl.col("county").first(),
-                *[
-                    pl.col(c).dot(pl.col("weights"))
-                    for c in weather_columns
-                ]
+                *[pl.col(c).dot(pl.col("weights")) for c in weather_columns],
             )
 
         df_relevant_stations = find_relevant_county_stations(
             df_capitals=self.data_storage.df_capitals,
             df_weather_hist=df_weather,
             max_dist=100.0,
-            on_land_only=True
+            on_land_only=True,
         )
-        df_stations_with_weights = df_relevant_stations.group_by("county").map_groups(calculate_weights_of_stations)
-        
+        df_stations_with_weights = df_relevant_stations.group_by("county").map_groups(
+            calculate_weights_of_stations
+        )
+
         return (
-            df_weather
-            .with_columns(
+            df_weather.with_columns(
                 pl.col("latitude").cast(pl.datatypes.Float32),
                 pl.col("longitude").cast(pl.datatypes.Float32),
             )
-            .join(df_stations_with_weights, on=["longitude", "latitude"], how="left",)
-            .group_by(["datetime", "county"]).map_groups(average_weather_based_on_weights)
+            .join(
+                df_stations_with_weights,
+                on=["longitude", "latitude"],
+                how="left",
+            )
+            .group_by(["datetime", "county"])
+            .map_groups(average_weather_based_on_weights)
             .filter(pl.col("county").is_not_null())
         )
-
 
     def _add_historical_weather_features(self, df_features):
         df_historical_weather = self.data_storage.df_historical_weather
@@ -230,25 +184,66 @@ class FeaturesGenerator:
             df_historical_weather.with_columns(
                 pl.col("latitude").cast(pl.datatypes.Float32),
                 pl.col("longitude").cast(pl.datatypes.Float32),
+                (pl.col("windspeed_10m")*(pl.col("winddirection_10m")*180/np.pi).cos()).alias("10_metre_u_wind_component"),
+                (pl.col("windspeed_10m")*(pl.col("winddirection_10m")*180/np.pi).sin()).alias("10_metre_v_wind_component"),
             )
+            .drop(columns=["winddirection_10m"])
         )
 
-        df_historical_weather = self._join_weather_with_counties(df_historical_weather)
-        
-        df_features = df_features.join(
+        weather_columns = self.data_storage.historical_weather_raw_features.copy()
+        weather_columns.remove("winddirection_10m")
+        weather_columns.extend(["10_metre_u_wind_component", "10_metre_v_wind_component"])
+
+        df_historical_weather = self._join_weather_with_counties(
             df_historical_weather,
-            on=["datetime", "county"],
-            how="left"
+            weather_columns = weather_columns
         )
 
-        for hours_lag in [1*24, 2 * 24, 7 * 24]:
+        for hours_lag in [0, 1 * 24, 2 * 24, 7 * 24]:
             df_features = df_features.join(
                 df_historical_weather.with_columns(
                     pl.col("datetime") + pl.duration(hours=hours_lag)
                 ),
                 on=["datetime", "county"],
                 how="left",
-                suffix=f"_historical_local_{hours_lag}h",
+                suffix=f"_historical_{hours_lag}h",
+            )
+
+        return df_features
+
+    def _add_forecast_weather_features(self, df_features):
+        df_forecast_weather = self.data_storage.df_forecast_weather
+
+        df_forecast_weather = (
+            df_forecast_weather.rename({"forecast_datetime": "datetime"})
+            .filter((pl.col("hours_ahead") >= 22) & pl.col("hours_ahead") <= 45)
+            .drop("hours_ahead")
+            .with_columns(
+                pl.col("latitude").cast(pl.datatypes.Float32),
+                pl.col("longitude").cast(pl.datatypes.Float32),
+                ((pl.col("total_precipitation") - pl.col("snowfall"))*1000).alias("rain"),
+                (pl.col("snowfall")*1000),
+                (pl.col("surface_solar_radiation_downwards") - pl.col("direct_solar_radiation")).alias("diffuse_radiation"),
+                ((pl.col("10_metre_v_wind_component")**2 + pl.col("10_metre_u_wind_component")**2)**(1/2)).alias("windspeed_10m")
+            )
+        )
+
+        weather_columns = self.data_storage.forecast_weather_raw_features.copy()
+        weather_columns.extend(["windspeed_10m", "diffuse_radiation", "rain"])
+
+        df_forecast_weather = self._join_weather_with_counties(
+            df_forecast_weather,
+            weather_columns = weather_columns
+        )
+
+        for hours_lag in [0, 7 * 24]:
+            df_features = df_features.join(
+                df_forecast_weather.with_columns(
+                    pl.col("datetime") + pl.duration(hours=hours_lag)
+                ),
+                on=["datetime", "county"],
+                how="left",
+                suffix=f"_forecast_{hours_lag}h",
             )
 
         return df_features
@@ -390,7 +385,7 @@ class FeaturesGenerator:
         for add_features in [
             self._add_general_features,
             self._add_client_features,
-            #self._add_forecast_weather_features,
+            self._add_forecast_weather_features,
             self._add_historical_weather_features,
             self._add_target_features,
             self._add_holidays_features,
@@ -402,15 +397,3 @@ class FeaturesGenerator:
         df_features = self._to_pandas(df_features, y)
 
         return df_features
-
-
-if __name__ == '__main__':
-    ds = DataStorage(
-        Path("/beegfs/ws/0/s4610340-energy_behavior/yahor/kaggle-predict_energy_behavior_of_prosumers/data/raw"),
-        Path("/beegfs/ws/0/s4610340-energy_behavior/yahor/kaggle-predict_energy_behavior_of_prosumers/data/processed/download_geo_data"),
-    )
-    df_features_train = FeaturesGenerator(ds, cfg={}).generate_features(ds.df_data)
-
-    print(df_features_train)
-
-    print(df_features_train.columns)

@@ -1,5 +1,5 @@
 import abc
-from typing import Generic, Literal, NewType, TypeVar, overload
+from typing import Generic, Literal, NewType, Optional, TypeVar, overload
 from typing_extensions import Self
 import numpy as np
 import pandas as pd
@@ -12,7 +12,20 @@ class ProductionRegressionBase(Generic[OrderType]):
     @abc.abstractmethod
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         pass
+    
+    @abc.abstractclassmethod
+    def set_regressors(
+        self: "ProductionRegressionBase[Literal[1]]", 
+        regressors: dict[str, Optional[str]]
+    ):
+        ...
 
+    @abc.abstractclassmethod
+    def get_model(
+        self, 
+        order: int
+    ) -> "ProductionRegressionBase[Literal[1]]":
+        ...
 
     @overload
     def fit(

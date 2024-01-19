@@ -10,7 +10,7 @@ TrainTupType = tuple[pd.DataFrame, np.ndarray]
 
 
 class RegressionBase(abc.ABC, Generic[OrderType]):
-    
+
     @abc.abstractmethod
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         pass

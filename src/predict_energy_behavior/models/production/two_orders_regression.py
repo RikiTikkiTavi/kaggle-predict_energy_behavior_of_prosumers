@@ -6,8 +6,8 @@ from predict_energy_behavior.models.production.base_model import (
     ProductionRegressionBase,
     TrainTupType,
 )
-from predict_energy_behavior.models.production.solar_output_regressor import (
-    SolarOutputRegressor,
+from predict_energy_behavior.models.production.solar_output_regression import (
+    SolarOutputRegresson,
 )
 
 import logging
@@ -24,13 +24,12 @@ class TwoOrdersRegression(ProductionRegressionBase[Literal[2]]):
         self._first_order_model = first_order_model
         self._second_order_model = second_order_model
 
-    @property
-    def first_order(self) -> SolarOutputRegressor:
-        return self._first_order_model
-
-    @property
-    def second_order(self) -> SolarOutputRegressor:
-        return self._second_order_model
+    def get_model(self, order: int):
+        assert 0 < order and order < 3
+        if order == 1:
+            return self._first_order_model
+        else:
+            return self._second_order_model
 
     def predict(self, X: pd.DataFrame):
         X = X.copy()

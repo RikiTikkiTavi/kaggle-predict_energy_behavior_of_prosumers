@@ -4,10 +4,20 @@ model_p:
   _target_: predict_energy_behavior.models.production.two_orders_regression.TwoOrdersRegression
   _recursive_: True
   first_order_model:
-    _target_: predict_energy_behavior.models.production.solar_output_regressor.GroupedSolarOutputRegressor
+    _target_: predict_energy_behavior.models.production.solar_output_regression.GroupedSolarOutputRegression
     group_columns:
       - "product_type"
     n_processes: 12
+    regressors: 
+      temperature: "temperature_historical_0h"
+      dewpoint: "dewpoint_historical_0h"
+      diffuse_radiation: "diffuse_radiation_historical_0h"
+      direct_solar_radiation: "direct_solar_radiation_historical_0h"
+      snowfall: "snowfall_historical_0h"
+      rain: "rain_historical_0h"
+      windspeed_10m: "windspeed_10m_historical_0h"
+      installed_capacity: "installed_capacity"
+      
   second_order_model:
     _target_: predict_energy_behavior.models.production.second_order.LGBMSecondOrderModel
     n_models: 8
@@ -27,20 +37,19 @@ model_p:
       device: "cpu"
       n_jobs: 12
     features: [
-      "temperature",
-      "dewpoint",
-      "rain",
-      "snowfall",
-      "surface_pressure",
-      "cloudcover_total",
-      "cloudcover_low",
-      "cloudcover_mid",
-      "cloudcover_high",
-      "windspeed_10m",
-      "winddirection_10m",
-      "shortwave_radiation",
-      "direct_solar_radiation",
-      "diffuse_radiation",
+      "temperature_historical_0h",
+      "dewpoint_historical_0h",
+      "rain_historical_0h",
+      "snowfall_historical_0h",
+      "cloudcover_total_historical_0h",
+      "cloudcover_low_historical_0h",
+      "cloudcover_mid_historical_0h",
+      "cloudcover_high_historical_0h",
+      "direct_solar_radiation_historical_0h",
+      "diffuse_radiation_historical_0h",
+      "windspeed_10m_historical_0h",
+      "10_metre_u_wind_component_historical_0h",
+      "10_metre_v_wind_component_historical_0h",
       "sin(hour)",
       "cos(hour)",
       "sin(dayofyear)",
@@ -59,7 +68,6 @@ model_c:
     "county",
     "is_business",
     "product_type",
-    "is_consumption",
     "day",
     "weekday",
     "month",
@@ -70,62 +78,63 @@ model_c:
     "cos(hour)",
     "eic_count",
     "installed_capacity",
-    "temperature",
-    "dewpoint",
-    "rain",
-    "snowfall",
-    "surface_pressure",
-    "cloudcover_total",
-    "cloudcover_low",
-    "cloudcover_mid",
-    "cloudcover_high",
-    "windspeed_10m",
-    "winddirection_10m",
-    "shortwave_radiation",
-    "direct_solar_radiation",
-    "diffuse_radiation",
-    "temperature_historical_local_24h",
-    "dewpoint_historical_local_24h",
-    "rain_historical_local_24h",
-    "snowfall_historical_local_24h",
-    "surface_pressure_historical_local_24h",
-    "cloudcover_total_historical_local_24h",
-    "cloudcover_low_historical_local_24h",
-    "cloudcover_mid_historical_local_24h",
-    "cloudcover_high_historical_local_24h",
-    "windspeed_10m_historical_local_24h",
-    "winddirection_10m_historical_local_24h",
-    "shortwave_radiation_historical_local_24h",
-    "direct_solar_radiation_historical_local_24h",
-    "diffuse_radiation_historical_local_24h",
-    "temperature_historical_local_48h",
-    "dewpoint_historical_local_48h",
-    "rain_historical_local_48h",
-    "snowfall_historical_local_48h",
-    "surface_pressure_historical_local_48h",
-    "cloudcover_total_historical_local_48h",
-    "cloudcover_low_historical_local_48h",
-    "cloudcover_mid_historical_local_48h",
-    "cloudcover_high_historical_local_48h",
-    "windspeed_10m_historical_local_48h",
-    "winddirection_10m_historical_local_48h",
-    "shortwave_radiation_historical_local_48h",
-    "direct_solar_radiation_historical_local_48h",
-    "diffuse_radiation_historical_local_48h",
-    "temperature_historical_local_168h",
-    "dewpoint_historical_local_168h",
-    "rain_historical_local_168h",
-    "snowfall_historical_local_168h",
-    "surface_pressure_historical_local_168h",
-    "cloudcover_total_historical_local_168h",
-    "cloudcover_low_historical_local_168h",
-    "cloudcover_mid_historical_local_168h",
-    "cloudcover_high_historical_local_168h",
-    "windspeed_10m_historical_local_168h",
-    "winddirection_10m_historical_local_168h",
-    "shortwave_radiation_historical_local_168h",
-    "direct_solar_radiation_historical_local_168h",
-    "diffuse_radiation_historical_local_168h",
+    # Historical 0h
+    "temperature_historical_0h",
+    "dewpoint_historical_0h",
+    "rain_historical_0h",
+    "snowfall_historical_0h",
+    "cloudcover_total_historical_0h",
+    "cloudcover_low_historical_0h",
+    "cloudcover_mid_historical_0h",
+    "cloudcover_high_historical_0h",
+    "windspeed_10m_historical_0h",
+    "direct_solar_radiation_historical_0h",
+    "diffuse_radiation_historical_0h",
+    "10_metre_u_wind_component_historical_0h",
+    "10_metre_v_wind_component_historical_0h",
+    # Historical 24h
+    "temperature_historical_24h",
+    "dewpoint_historical_24h",
+    "rain_historical_24h",
+    "snowfall_historical_24h",
+    "cloudcover_total_historical_24h",
+    "cloudcover_low_historical_24h",
+    "cloudcover_mid_historical_24h",
+    "cloudcover_high_historical_24h",
+    "direct_solar_radiation_historical_24h",
+    "diffuse_radiation_historical_24h",
+    "windspeed_10m_historical_24h",
+    "10_metre_u_wind_component_historical_24h",
+    "10_metre_v_wind_component_historical_24h",
+    # Historical 48h
+    "temperature_historical_48h",
+    "dewpoint_historical_48h",
+    "rain_historical_48h",
+    "snowfall_historical_48h",
+    "cloudcover_total_historical_48h",
+    "cloudcover_low_historical_48h",
+    "cloudcover_mid_historical_48h",
+    "cloudcover_high_historical_48h",
+    "direct_solar_radiation_historical_48h",
+    "diffuse_radiation_historical_48h",
+    "windspeed_10m_historical_48h",
+    "10_metre_u_wind_component_historical_48h",
+    "10_metre_v_wind_component_historical_48h",
+    # Historical 168h
+    "temperature_historical_168h",
+    "dewpoint_historical_168h",
+    "rain_historical_168h",
+    "snowfall_historical_168h",
+    "cloudcover_total_historical_168h",
+    "cloudcover_low_historical_168h",
+    "cloudcover_mid_historical_168h",
+    "cloudcover_high_historical_168h",
+    "direct_solar_radiation_historical_168h",
+    "diffuse_radiation_historical_168h",
+    "windspeed_10m_historical_168h",
+    "10_metre_u_wind_component_historical_168h",
+    "10_metre_v_wind_component_historical_168h",
+    # Target features
     "target_48h",
     "target_72h",
     "target_96h",
@@ -157,7 +166,7 @@ model_c:
     "target_all_type_sum_ratio_168_336",
     "target_all_county_type_sum_ratio_48_72",
     "target_all_county_type_sum_ratio_168_336",
-    "is_country_holiday",
+    "is_country_holiday"
   ]
   parameters:
     n_estimators: 1000
