@@ -4,7 +4,7 @@ import sklearn
 from sklearn.ensemble import VotingRegressor
 import predict_energy_behavior.config as config
 import predict_energy_behavior.models.joined_model as joined_model
-import predict_energy_behavior.utils as utils
+import predict_energy_behavior.utils.common as common
 import pandas as pd
 from pathlib import Path
 import hydra

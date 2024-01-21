@@ -199,6 +199,8 @@ class FeaturesGenerator:
             weather_columns = weather_columns
         )
 
+        df_historical_weather = df_historical_weather.rename({c: f"{c}_historical" for c in weather_columns})
+
         for hours_lag in [0, 1 * 24, 2 * 24, 7 * 24]:
             df_features = df_features.join(
                 df_historical_weather.with_columns(
@@ -206,10 +208,13 @@ class FeaturesGenerator:
                 ),
                 on=["datetime", "county"],
                 how="left",
-                suffix=f"_historical_{hours_lag}h",
+                suffix=f"_h{hours_lag}"
             )
 
         return df_features
+    
+    def _snowfall_mwe_to_cm(self, s: pl.Expr, rho=334) -> pl.Expr:
+        return 1000 / rho * s * 100
 
     def _add_forecast_weather_features(self, df_features):
         df_forecast_weather = self.data_storage.df_forecast_weather
@@ -221,20 +226,21 @@ class FeaturesGenerator:
             .with_columns(
                 pl.col("latitude").cast(pl.datatypes.Float32),
                 pl.col("longitude").cast(pl.datatypes.Float32),
-                ((pl.col("total_precipitation") - pl.col("snowfall"))*1000).alias("rain"),
-                (pl.col("snowfall")*1000),
-                (pl.col("surface_solar_radiation_downwards") - pl.col("direct_solar_radiation")).alias("diffuse_radiation"),
+                (pl.col("total_precipitation") - 1000*pl.col("snowfall")).alias("rain"),
+                (self._snowfall_mwe_to_cm(pl.col("snowfall"))),
                 ((pl.col("10_metre_v_wind_component")**2 + pl.col("10_metre_u_wind_component")**2)**(1/2)).alias("windspeed_10m")
             )
         )
 
         weather_columns = self.data_storage.forecast_weather_raw_features.copy()
-        weather_columns.extend(["windspeed_10m", "diffuse_radiation", "rain"])
+        weather_columns.extend(["windspeed_10m", "rain"])
 
         df_forecast_weather = self._join_weather_with_counties(
             df_forecast_weather,
             weather_columns = weather_columns
         )
+
+        df_forecast_weather = df_forecast_weather.rename({c: f"{c}_forecast" for c in weather_columns})
 
         for hours_lag in [0, 7 * 24]:
             df_features = df_features.join(
@@ -243,7 +249,7 @@ class FeaturesGenerator:
                 ),
                 on=["datetime", "county"],
                 how="left",
-                suffix=f"_forecast_{hours_lag}h",
+                suffix=f"_h{hours_lag}"
             )
 
         return df_features

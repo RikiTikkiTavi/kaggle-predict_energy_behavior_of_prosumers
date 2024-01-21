@@ -9,12 +9,12 @@ model_p:
       - "product_type"
     n_processes: 12
     regressors: 
-      temperature: "temperature_historical_0h"
-      dewpoint: "dewpoint_historical_0h"
-      shortwave_radiation: "shortwave_radiation"
-      snowfall: "snowfall_historical_0h"
-      rain: "rain_historical_0h"
-      windspeed_10m: "windspeed_10m_historical_0h"
+      temperature: "temperature_historical"
+      dewpoint: "dewpoint_historical"
+      shortwave_radiation: "surface_solar_radiation_downwards_forecast"
+      snowfall: "snowfall_historical"
+      rain: "rain_historical"
+      windspeed_10m: "windspeed_10m_historical"
       installed_capacity: "installed_capacity"
       
   second_order_model:
@@ -36,18 +36,18 @@ model_p:
       device: "cpu"
       n_jobs: 12
     features: [
-      "temperature_historical_0h",
-      "dewpoint_historical_0h",
-      "rain_historical_0h",
-      "snowfall_historical_0h",
-      "cloudcover_total_historical_0h",
-      "cloudcover_low_historical_0h",
-      "cloudcover_mid_historical_0h",
-      "cloudcover_high_historical_0h",
-      "shortwave_radiation",
-      "windspeed_10m_historical_0h",
-      "10_metre_u_wind_component_historical_0h",
-      "10_metre_v_wind_component_historical_0h",
+      "temperature_historical",
+      "dewpoint_historical",
+      "rain_historical",
+      "snowfall_historical",
+      "cloudcover_total_historical",
+      "cloudcover_low_historical",
+      "cloudcover_mid_historical",
+      "cloudcover_high_historical",
+      "surface_solar_radiation_downwards_forecast",
+      "windspeed_10m_historical",
+      "10_metre_u_wind_component_historical",
+      "10_metre_v_wind_component_historical",
       "sin(hour)",
       "cos(hour)",
       "sin(dayofyear)",
@@ -77,19 +77,18 @@ model_c:
     "eic_count",
     "installed_capacity",
     # Historical 0h
-    "temperature_historical_0h",
-    "dewpoint_historical_0h",
-    "rain_historical_0h",
-    "snowfall_historical_0h",
-    "cloudcover_total_historical_0h",
-    "cloudcover_low_historical_0h",
-    "cloudcover_mid_historical_0h",
-    "cloudcover_high_historical_0h",
-    "windspeed_10m_historical_0h",
-    "direct_solar_radiation_historical_0h",
-    "diffuse_radiation_historical_0h",
-    "10_metre_u_wind_component_historical_0h",
-    "10_metre_v_wind_component_historical_0h",
+    "temperature_historical",
+    "dewpoint_historical",
+    "rain_historical",
+    "snowfall_historical",
+    "cloudcover_total_historical",
+    "cloudcover_low_historical",
+    "cloudcover_mid_historical",
+    "cloudcover_high_historical",
+    "windspeed_10m_historical",
+    "direct_solar_radiation_historical",
+    "10_metre_u_wind_component_historical",
+    "10_metre_v_wind_component_historical",
     # Historical 24h
     "temperature_historical_24h",
     "dewpoint_historical_24h",

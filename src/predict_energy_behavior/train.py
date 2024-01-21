@@ -4,7 +4,7 @@ import sklearn
 from sklearn.ensemble import VotingRegressor
 import predict_energy_behavior.config as config
 import predict_energy_behavior.models.joined_model as joined_model
-import predict_energy_behavior.utils as utils
+import predict_energy_behavior.utils.common as common
 import pandas as pd
 from pathlib import Path
 import hydra
@@ -29,7 +29,7 @@ def main(cfg: config.ConfigExperiment):
     with mlflow.start_run(
         run_name=cfg.run_name, experiment_id=experiment.experiment_id
     ):
-        mlflow.log_params(utils.flatten_dict(cfg))
+        mlflow.log_params(common.flatten_dict(cfg))
 
         path_data_processed = Path(cfg.dir.data_processed)
         path_df = (
@@ -75,11 +75,10 @@ def main(cfg: config.ConfigExperiment):
         _logger.info("Validation on forecast ...")
 
         features = df_val.columns
-        historical_weather_features = [f for f in features if "historical_0h" in f]
-        corresponding_weather_features  = [f.replace("_historical_0h", "") for f in historical_weather_features]
+        historical_weather_features = [f for f in features if f.endswith("historical")]
+        corresponding_weather_features  = [f.replace("_historical", "_forecast") for f in historical_weather_features]
         df_val = df_val.drop(columns=historical_weather_features)
         df_val = df_val.rename({f_c: f_h for f_h, f_c in zip(historical_weather_features, corresponding_weather_features)}, axis=1)
-        df_val["shortwave_radiation"] = df_val["surface_solar_radiation_downwards"] / 2
 
         _logger.info(list(df_val.columns))
 

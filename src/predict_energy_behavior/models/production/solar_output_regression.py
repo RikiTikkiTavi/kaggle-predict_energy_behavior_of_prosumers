@@ -6,7 +6,9 @@ from dataclasses import dataclass, asdict
 import numpy as np
 import pandas as pd
 from sklearn.metrics._regression import mean_absolute_error as mean_absolute_error
-from predict_energy_behavior.models.production.base_model import ProductionRegressionBase
+from predict_energy_behavior.models.production.base_model import (
+    ProductionRegressionBase,
+)
 import multiprocessing
 
 
@@ -47,12 +49,14 @@ def estimate_fog_intensity(T, D, WS):
 
     return fog_intensity
 
+
 @dataclass
 class Parameter:
     name: str
     value: float
     bounds: tuple[float, float]
     fixed: bool = False
+
 
 @dataclass
 class SolarOutputRegressors:
@@ -62,14 +66,15 @@ class SolarOutputRegressors:
     dewpoint: Optional[str] = "dewpoint"
     windspeed: Optional[str] = "windspeed_10m"
     shortwave_radiation: str = "shortwave_radiation"
-    #direct_solar_radiation: str = "direct_solar_radiation"
-    #diffuse_radiation: Optional[str] = "diffuse_radiation"
+    # direct_solar_radiation: str = "direct_solar_radiation"
+    # diffuse_radiation: Optional[str] = "diffuse_radiation"
     installed_capacity: str = "installed_capacity"
+
 
 default_regressors = asdict(SolarOutputRegressors())
 
 
-class SolarOutputRegresson(ProductionRegressionBase[Literal[1]]):
+class SolarOutputRegression(ProductionRegressionBase[Literal[1]]):
     regressors: dict[str, Optional[str]]
     weights: dict[str, float]
     bounds: dict[str, tuple[float, float]]
@@ -83,8 +88,7 @@ class SolarOutputRegresson(ProductionRegressionBase[Literal[1]]):
         "C_fog": 0.14347390597725973,
         "C_dew": 0.653589763694636,
         "C_rain": 0.1,
-        "C_rad_tot_lin": 695.2618946165278,
-        "C_rad_tot_scale": 1.2778024861759831,
+        "C_rad_tot_scale": 0.7,
         "C_snow_thr": 0.3012731490340903,
         "C_snow_const": 0.0014409555778735397,
     }
@@ -94,8 +98,7 @@ class SolarOutputRegresson(ProductionRegressionBase[Literal[1]]):
         "C_fog": (0.0, 1.0),
         "C_dew": (0.0, 1.0),
         "C_rain": (0.1, 1.0),
-        "C_rad_tot_lin": (650.0, 700),
-        "C_rad_tot_scale": (1, 1.3),
+        "C_rad_tot_scale": (0.0, 1.0),
         "C_snow_thr": (0.2, 0.5),
         "C_snow_const": (0.0, 1.0),
     }
@@ -124,8 +127,8 @@ class SolarOutputRegresson(ProductionRegressionBase[Literal[1]]):
         self.regressors = regressors
 
     @staticmethod
-    def from_params(params: list[Parameter], **kwargs) -> "SolarOutputRegresson":
-        return SolarOutputRegresson(
+    def from_params(params: list[Parameter], **kwargs) -> "SolarOutputRegression":
+        return SolarOutputRegression(
             bounds={p.name: p.bounds for p in params},
             weights={p.name: p.value for p in params},
             **kwargs,
@@ -223,6 +226,36 @@ class SolarOutputRegresson(ProductionRegressionBase[Literal[1]]):
             )
         return dew_factor
 
+    def _shortwave_contrib(
+        self, parameters: dict[str, float], regressors: pd.DataFrame
+    ):
+        if (
+            "C_rad_tot_k1" in parameters
+            and "C_rad_tot_k2" in parameters
+            and "C_rad_tot_k3" in parameters
+        ):
+            I = regressors["shortwave_radiation"] / 1000
+            thr_1 = parameters["C_rad_tot_b1"]
+            thr_2 = parameters["C_rad_tot_b2"]
+            k_1 = parameters["C_rad_tot_k1"]
+            k_2 = parameters["C_rad_tot_k2"]
+            k_3 = parameters["C_rad_tot_k3"]
+            return np.where(
+                I<=thr_1,
+                I*k_1,
+                np.where(
+                    I >= thr_2,
+                    (I-thr_2)*k_3 + thr_2*k_2 + thr_1*k_1,
+                    (I-thr_1)*k_2 + thr_1*k_1, 
+                )
+            )
+        elif "C_rad_tot_scale" in parameters:
+            return (
+                regressors["shortwave_radiation"] / 1000 * parameters["C_rad_tot_scale"]
+            )
+        else:
+            return regressors["shortwave_radiation"] / 1000
+
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         regressors = {k: X[v] for k, v in self.regressors.items() if v is not None}
         baseline_temperature = self.baseline_temperature
@@ -246,30 +279,7 @@ class SolarOutputRegresson(ProductionRegressionBase[Literal[1]]):
         # Adjust for Dew in the Morning
         dew_factor = self._dew_factor(parameters, regressors)
 
-
-        I_direct = 0.0
-        if "C_rad_direct_lin" in parameters and "C_rad_direct_scale" in parameters:
-            I_direct = np.where(
-                regressors["direct_solar_radiation"] < parameters["C_rad_direct_lin"],
-                regressors["direct_solar_radiation"] * parameters["C_rad_direct_scale"],
-                regressors["direct_solar_radiation"] * parameters["C_rad_direct_lin"],
-            )
-
-        I_shortwave = regressors["shortwave_radiation"]
-        if "C_rad_tot_lin" in parameters and "C_rad_tot_scale" in parameters:
-            I_shortwave = np.where(
-                regressors["shortwave_radiation"] < parameters["C_rad_tot_lin"],
-                regressors["shortwave_radiation"] * parameters["C_rad_tot_scale"],
-                regressors["shortwave_radiation"] * parameters["C_rad_tot_lin"],
-            )
-
-        I_diffuse = 0.0
-        if f"C_rad_diffuse" in parameters:
-            I_diffuse += parameters["C_rad_diffuse"] * regressors["diffuse_radiation"]
-
-        I_adj = I_shortwave + I_direct + I_diffuse
-
-        E = I_adj / 1000
+        I_shortwave = self._shortwave_contrib(parameters, regressors)
 
         # effect of temperature above STC
         temperature_eff = self._temperature_above_stc_factor(parameters, regressors)
@@ -297,12 +307,11 @@ class SolarOutputRegresson(ProductionRegressionBase[Literal[1]]):
         if "C_area" in parameters:
             C_area = parameters["C_area"]
 
-        return C_area * regressors["installed_capacity"] * E * eta_total
+        return C_area * regressors["installed_capacity"] * I_shortwave * eta_total
 
-    
     def fit(
         self, X: pd.DataFrame, y: np.ndarray[float]
-    ) -> "SolarOutputRegresson" | NoReturn:  
+    ) -> "SolarOutputRegression" | NoReturn:
         def objective_function(params: np.ndarray):
             self.weights = dict(zip(self.weights.keys(), params))
             return self.loss(self.predict(X), y)
@@ -332,8 +341,8 @@ class SolarOutputRegresson(ProductionRegressionBase[Literal[1]]):
     @staticmethod
     def create_and_fit(
         X: pd.DataFrame, y: np.ndarray, init_params: dict[str, Any]
-    ) -> "SolarOutputRegresson":
-        model = SolarOutputRegresson(**init_params)
+    ) -> "SolarOutputRegression":
+        model = SolarOutputRegression(**init_params)
         model.fit(X, y)
         return model
 
@@ -348,7 +357,7 @@ class SolarOutputRegresson(ProductionRegressionBase[Literal[1]]):
 
 
 class GroupedSolarOutputRegression(ProductionRegressionBase[Literal[1]]):
-    _group_to_model: dict[tuple[str, ...] | str, SolarOutputRegresson]
+    _group_to_model: dict[tuple[str, ...] | str, SolarOutputRegression]
 
     def __init__(
         self,
@@ -361,20 +370,22 @@ class GroupedSolarOutputRegression(ProductionRegressionBase[Literal[1]]):
         self._n_processes = n_processes
 
     def _predict_average(self, df: pd.DataFrame) -> np.ndarray:
-        return np.mean([model.predict(df) for model in self._group_to_model.values()], axis=0)
+        return np.mean(
+            [model.predict(df) for model in self._group_to_model.values()], axis=0
+        )
 
     def _predict_group(
         self, group: tuple[str, ...] | str, df: pd.DataFrame
     ) -> np.ndarray:
         if not isinstance(group, tuple):
             group = (group,)
-        
+
         if group in self._group_to_model:
             return self._group_to_model[group].predict(df)
         else:
             print(f"!!!!!!!!!!!!!!!!!!!!!!!!! No group: {group} => predicting average")
             return self._predict_average(df)
-        
+
     def set_regressors(self, regressors: dict[str, Optional[str]]):
         for m in self._group_columns.values():
             m.set_regressors(regressors)
@@ -395,7 +406,7 @@ class GroupedSolarOutputRegression(ProductionRegressionBase[Literal[1]]):
                 (df, df["__target"], self._regressor_params)
                 for _, df in group_to_df.items()
             ]
-            models = pool.starmap(SolarOutputRegresson.create_and_fit, args)
+            models = pool.starmap(SolarOutputRegression.create_and_fit, args)
 
         self._N = len(X)
         self._group_to_model = dict(zip(group_to_df.keys(), models))
@@ -405,7 +416,7 @@ class GroupedSolarOutputRegression(ProductionRegressionBase[Literal[1]]):
     def _train_score(self):
         s = 0.0
         for model in self._group_to_model.values():
-            s += model.optim_result.fun * model.N / self._N 
+            s += model.optim_result.fun * model.N / self._N
         return s
 
     def __str__(self) -> str:

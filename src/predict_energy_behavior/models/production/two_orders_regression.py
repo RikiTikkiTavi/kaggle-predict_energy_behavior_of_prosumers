@@ -7,7 +7,7 @@ from predict_energy_behavior.models.production.base_model import (
     TrainTupType,
 )
 from predict_energy_behavior.models.production.solar_output_regression import (
-    SolarOutputRegresson,
+    SolarOutputRegression,
 )
 
 import logging
