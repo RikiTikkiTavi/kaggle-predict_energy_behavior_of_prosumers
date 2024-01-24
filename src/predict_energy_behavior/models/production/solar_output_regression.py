@@ -1,3 +1,4 @@
+from pathlib import Path
 from numpy import ndarray
 from scipy.optimize import minimize, OptimizeResult
 import sklearn.metrics
@@ -9,6 +10,8 @@ from sklearn.metrics._regression import mean_absolute_error as mean_absolute_err
 from predict_energy_behavior.models.production.base_model import (
     ProductionRegressionBase,
 )
+
+import joblib
 import multiprocessing
 
 
@@ -88,9 +91,13 @@ class SolarOutputRegression(ProductionRegressionBase[Literal[1]]):
         "C_fog": 0.14347390597725973,
         "C_dew": 0.653589763694636,
         "C_rain": 0.1,
-        "C_rad_tot_scale": 0.7,
-        "C_snow_thr": 0.3012731490340903,
-        "C_snow_const": 0.0014409555778735397,
+        "C_rad_tot_k1": 0.3,
+        "C_rad_tot_k2": 0.74,
+        "C_rad_tot_k3": 0.4,
+        "C_rad_tot_b1": 0.097,
+        "C_rad_tot_b2": 0.6,
+        "C_snow_thr": 0.3,
+        "C_snow_const": 0.0014,
     }
 
     bounds = {
@@ -98,7 +105,11 @@ class SolarOutputRegression(ProductionRegressionBase[Literal[1]]):
         "C_fog": (0.0, 1.0),
         "C_dew": (0.0, 1.0),
         "C_rain": (0.1, 1.0),
-        "C_rad_tot_scale": (0.0, 1.0),
+        "C_rad_tot_k1": (0.0, 1.0),
+        "C_rad_tot_k2": (0.0, 1.0),
+        "C_rad_tot_k3": (0.0, 1.0),
+        "C_rad_tot_b1": (0.0, 0.2),
+        "C_rad_tot_b2": (0.2, 0.8),
         "C_snow_thr": (0.2, 0.5),
         "C_snow_const": (0.0, 1.0),
     }
@@ -431,3 +442,10 @@ class GroupedSolarOutputRegression(ProductionRegressionBase[Literal[1]]):
     def get_model(self, order: int):
         assert order == 1
         return self
+
+    @classmethod
+    def load(cls, path: Path):
+        return joblib.load(path)
+
+    def save(self, path: Path):
+        joblib.dump(self, path)

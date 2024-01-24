@@ -15,6 +15,13 @@ class ConfigDownloadGeoData:
     dir: ConfigDir
 
 @dataclass
+class ConfigPrepareStations:
+    dir: ConfigDir
+    min_weight: float = 0.3
+    max_distance: float = 100.0
+    on_land_only: bool = True
+
+@dataclass
 class ConfigPrepareData:
     dir: ConfigDir
     phase: str
@@ -36,4 +43,5 @@ class ConfigExperiment:
 @dataclass
 class ConfigInference:
     dir: ConfigDir
+    debug: bool
     path_model: str

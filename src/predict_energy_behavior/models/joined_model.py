@@ -1,12 +1,20 @@
 import logging
+from pathlib import Path
 from typing import Any, Callable, Literal, Sequence, overload
 from typing_extensions import Self
 import numpy as np
 import pandas as pd
+from sqlalchemy import Join
 from predict_energy_behavior.models.base_model import RegressionBase
 from predict_energy_behavior.models.production.base_model import (
     ProductionRegressionBase,
     TrainTupType,
+)
+from predict_energy_behavior.models.production.two_orders_regression import (
+    TwoOrdersRegression
+)
+from predict_energy_behavior.models.production.second_order import (
+    LGBMSecondOrderModel
 )
 from predict_energy_behavior.models.consumption.base_model import (
     ConsumptionRegressionBase,
@@ -36,7 +44,7 @@ class JoinedModel(RegressionBase[Literal[2]]):
         X_c = select_consumption(X, True)
         preds_c = pd.Series(self._model_c.predict(X_c), index=X_c.index)
 
-        return pd.concat(preds_p, preds_c).loc[X.index].to_numpy()
+        return pd.concat([preds_p, preds_c]).loc[X.index].to_numpy()
 
     @overload
     def fit(
@@ -116,3 +124,19 @@ class JoinedModel(RegressionBase[Literal[2]]):
             "consumption": {key: metric(preds_c, y.loc[X_c.index]) for key, metric in metrics.items()},
             "total": {key: metric(preds, y) for key, metric in metrics.items()}
         }
+
+    @classmethod
+    def load(cls, path: Path) -> "JoinedModel":
+        return JoinedModel(
+            model_p=TwoOrdersRegression.load(path / "production"),
+            model_c=LGBMSecondOrderModel.load(path / "consumption")
+        )
+
+    def save(self, path: Path):
+        path_output_p = path / "production"
+        path_output_p.mkdir(exist_ok=True, parents=True)
+        self._model_p.save(path_output_p)
+
+        path_output_c = path / "consumption"
+        path_output_c.mkdir(exist_ok=True, parents=True)
+        self._model_c.save(path_output_c)

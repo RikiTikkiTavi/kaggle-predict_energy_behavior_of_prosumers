@@ -1,6 +1,9 @@
 #!/bin/bash
 
-cp src ./outputs/tmp/source/src
-cp configs ./outputs/tmp/source/configs
+rm -r ./outputs/tmp/source/src
+rm -r ./outputs/tmp/source/configs
 
-kaggle datasets version -p ./outputs/tmp/source -m "Update"
+cp -r src ./outputs/tmp/source/src
+cp -r configs ./outputs/tmp/source/configs
+
+kaggle datasets version -p ./outputs/tmp/source -m "Update" --dir-mode "zip"

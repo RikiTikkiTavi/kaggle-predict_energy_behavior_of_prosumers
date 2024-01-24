@@ -8,10 +8,11 @@ ONLY works afer the first three variables in MockAPI.__init__ are populated.
 from typing import Sequence, Tuple
 
 import pandas as pd
+from pathlib import Path
 
 
 class MockApi:
-    def __init__(self):
+    def __init__(self, path_example_test: Path):
         '''
         YOU MUST UPDATE THE FIRST THREE LINES of this method.
         They've been intentionally left in an invalid state.
@@ -22,9 +23,15 @@ class MockApi:
                 A call to iter_test serves all rows of all dataframes with the current group ID value.
             export_group_id_column: if true, the dataframes iter_test serves will include the group_id_column values.
         '''
-        self.input_paths: Sequence[str] =
-        self.group_id_column: str =
-        self.export_group_id_column: bool =
+             
+        self.fpath=str(path_example_test)
+        self.input_paths: Sequence[str] = [self.fpath + '/test.csv', self.fpath + '/revealed_targets.csv', 
+                                           self.fpath + '/client.csv', 
+                                           self.fpath + '/historical_weather.csv', self.fpath + '/forecast_weather.csv', 
+                                           self.fpath + '/electricity_prices.csv', self.fpath + '/gas_prices.csv',
+                                           self.fpath + '/sample_submission.csv']
+        self.group_id_column: str = "data_block_id"
+        self.export_group_id_column: bool = True
         # iter_test is only designed to support at least two dataframes, such as test and sample_submission
         assert len(self.input_paths) >= 2
 
@@ -63,8 +70,8 @@ class MockApi:
                 print('You must call `predict()` successfully before you can continue with `iter_test()`', flush=True)
                 yield None
 
-        with open('submission.csv', 'w') as f_open:
-            pd.concat(self.predictions).to_csv(f_open, index=False)
+        pd.concat(self.predictions).to_csv('submission.csv', index=False)
+            
         self._status = 'finished'
 
     def predict(self, user_predictions: pd.DataFrame):

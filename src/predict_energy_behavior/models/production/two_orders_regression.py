@@ -1,5 +1,7 @@
+from pathlib import Path
 from typing import Literal, overload
 from typing_extensions import Self
+import joblib
 import numpy as np
 import pandas as pd
 from predict_energy_behavior.models.production.base_model import (
@@ -8,6 +10,12 @@ from predict_energy_behavior.models.production.base_model import (
 )
 from predict_energy_behavior.models.production.solar_output_regression import (
     SolarOutputRegression,
+    GroupedSolarOutputRegression
+)
+
+from predict_energy_behavior.models.production.second_order import (
+    SecondOrderModel,
+    LGBMSecondOrderModel
 )
 
 import logging
@@ -18,8 +26,8 @@ _logger = logging.getLogger(__name__)
 class TwoOrdersRegression(ProductionRegressionBase[Literal[2]]):
     def __init__(
         self,
-        first_order_model: ProductionRegressionBase,
-        second_order_model: ProductionRegressionBase,
+        first_order_model: LGBMSecondOrderModel,
+        second_order_model: SecondOrderModel,
     ) -> None:
         self._first_order_model = first_order_model
         self._second_order_model = second_order_model
@@ -86,3 +94,14 @@ class TwoOrdersRegression(ProductionRegressionBase[Literal[2]]):
             return self._fit_with_separate_dfs(**kwargs)
         else:
             return self._fit_with_same_df(**kwargs)
+
+    @classmethod
+    def load(cls, path: Path) -> "TwoOrdersRegression":
+        return TwoOrdersRegression(
+            first_order_model=GroupedSolarOutputRegression.load(path / "production_1.pickle"),
+            second_order_model=LGBMSecondOrderModel.load(path)
+        )
+
+    def save(self, path: Path):
+        self._first_order_model.save(path / "production_1.pickle")
+        self._second_order_model.save(path)

@@ -30,6 +30,7 @@ class DataStorage:
     forecast_weather_cols = [
         "latitude",
         "longitude",
+        "origin_datetime",
         "hours_ahead",
         "temperature",
         "dewpoint",
@@ -106,7 +107,12 @@ class DataStorage:
         "datetime",
     ]
 
-    def __init__(self, path_data_raw: Path, path_data_geo: Path):
+    def __init__(
+            self, 
+            path_data_raw: Path, 
+            path_data_geo: Path,
+            path_data_stations: Path,
+        ):
         self.root = str(path_data_raw)
 
         self.df_data = pl.read_csv(
@@ -164,6 +170,8 @@ class DataStorage:
         self.df_county_boundaries = self.df_county_boundaries.with_columns(
             pl.col("county_name").map_dict(county_name_to_id).alias("county")
         ).drop("county_name")
+
+        self.df_stations = pl.read_parquet(path_data_stations / "stations_with_weights.parquet")
 
         self.schema_data = self.df_data.schema
         self.schema_client = self.df_client.schema
@@ -233,7 +241,7 @@ class DataStorage:
             ["datetime", "county", "is_business", "product_type", "is_consumption"]
         )
 
-    def preprocess_test(self, df_test):
+    def preprocess_test(self, df_test: pd.DataFrame):
         df_test = df_test.rename(columns={"prediction_datetime": "datetime"})
         df_test = pl.from_pandas(
             df_test[self.data_cols[1:]], schema_overrides=self.schema_data

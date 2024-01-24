@@ -1,0 +1,15 @@
+# ---------- Overriding hydra default configs ----------
+hydra:
+  job:
+    name: prepare_stations
+    chdir: true
+  run:
+    dir: ${dir.data_processed}/${hydra.job.name}/${hydra.job.override_dirname}
+
+defaults:
+  - _self_
+  - dir: alpha
+
+min_weight: 0.3
+max_distance: 100.0
+on_land_only: true

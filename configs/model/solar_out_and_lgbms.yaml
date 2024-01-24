@@ -23,15 +23,15 @@ model_p:
     n_jobs: 8
     n_gpus: 8
     parameters:
-      n_estimators: 100
+      n_estimators: 500
       learning_rate: 0.06
       colsample_bytree: 0.9
       colsample_bynode: 0.6
-      lambda_l1: 3.5
-      lambda_l2: 1.5
+      reg_alpha: 3.5
+      reg_lambda: 1.5
       max_depth: 16
       num_leaves: 500
-      min_data_in_leaf: 50
+      min_child_samples: 50
       objective: "regression_l1"
       device: "cpu"
       n_jobs: 12
@@ -89,48 +89,48 @@ model_c:
     "direct_solar_radiation_historical",
     "10_metre_u_wind_component_historical",
     "10_metre_v_wind_component_historical",
-    # Historical 24h
-    "temperature_historical_24h",
-    "dewpoint_historical_24h",
-    "rain_historical_24h",
-    "snowfall_historical_24h",
-    "cloudcover_total_historical_24h",
-    "cloudcover_low_historical_24h",
-    "cloudcover_mid_historical_24h",
-    "cloudcover_high_historical_24h",
-    "direct_solar_radiation_historical_24h",
-    "diffuse_radiation_historical_24h",
-    "windspeed_10m_historical_24h",
-    "10_metre_u_wind_component_historical_24h",
-    "10_metre_v_wind_component_historical_24h",
-    # Historical 48h
-    "temperature_historical_48h",
-    "dewpoint_historical_48h",
-    "rain_historical_48h",
-    "snowfall_historical_48h",
-    "cloudcover_total_historical_48h",
-    "cloudcover_low_historical_48h",
-    "cloudcover_mid_historical_48h",
-    "cloudcover_high_historical_48h",
-    "direct_solar_radiation_historical_48h",
-    "diffuse_radiation_historical_48h",
-    "windspeed_10m_historical_48h",
-    "10_metre_u_wind_component_historical_48h",
-    "10_metre_v_wind_component_historical_48h",
-    # Historical 168h
-    "temperature_historical_168h",
-    "dewpoint_historical_168h",
-    "rain_historical_168h",
-    "snowfall_historical_168h",
-    "cloudcover_total_historical_168h",
-    "cloudcover_low_historical_168h",
-    "cloudcover_mid_historical_168h",
-    "cloudcover_high_historical_168h",
-    "direct_solar_radiation_historical_168h",
-    "diffuse_radiation_historical_168h",
-    "windspeed_10m_historical_168h",
-    "10_metre_u_wind_component_historical_168h",
-    "10_metre_v_wind_component_historical_168h",
+    # Historical h24
+    "temperature_historical_h24",
+    "dewpoint_historical_h24",
+    "rain_historical_h24",
+    "snowfall_historical_h24",
+    "cloudcover_total_historical_h24",
+    "cloudcover_low_historical_h24",
+    "cloudcover_mid_historical_h24",
+    "cloudcover_high_historical_h24",
+    "direct_solar_radiation_historical_h24",
+    "diffuse_radiation_historical_h24",
+    "windspeed_10m_historical_h24",
+    "10_metre_u_wind_component_historical_h24",
+    "10_metre_v_wind_component_historical_h24",
+    # Historical h48
+    "temperature_historical_h48",
+    "dewpoint_historical_h48",
+    "rain_historical_h48",
+    "snowfall_historical_h48",
+    "cloudcover_total_historical_h48",
+    "cloudcover_low_historical_h48",
+    "cloudcover_mid_historical_h48",
+    "cloudcover_high_historical_h48",
+    "direct_solar_radiation_historical_h48",
+    "diffuse_radiation_historical_h48",
+    "windspeed_10m_historical_h48",
+    "10_metre_u_wind_component_historical_h48",
+    "10_metre_v_wind_component_historical_h48",
+    # Historical h168
+    "temperature_historical_h168",
+    "dewpoint_historical_h168",
+    "rain_historical_h168",
+    "snowfall_historical_h168",
+    "cloudcover_total_historical_h168",
+    "cloudcover_low_historical_h168",
+    "cloudcover_mid_historical_h168",
+    "cloudcover_high_historical_h168",
+    "direct_solar_radiation_historical_h168",
+    "diffuse_radiation_historical_h168",
+    "windspeed_10m_historical_h168",
+    "10_metre_u_wind_component_historical_h168",
+    "10_metre_v_wind_component_historical_h168",
     # Target features
     "target_48h",
     "target_72h",
@@ -166,15 +166,15 @@ model_c:
     "is_country_holiday"
   ]
   parameters:
-    n_estimators: 100
+    n_estimators: 500
     learning_rate: 0.06
     colsample_bytree: 0.9
     colsample_bynode: 0.6
-    lambda_l1: 3.5
-    lambda_l2: 1.5
+    reg_alpha: 3.5
+    reg_lambda: 1.5
     max_depth: 16
     num_leaves: 500
-    min_data_in_leaf: 50
+    min_child_samples: 50
     objective: "regression_l1"
     device: "cpu"
     n_jobs: 12

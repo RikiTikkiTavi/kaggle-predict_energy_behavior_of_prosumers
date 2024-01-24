@@ -31,6 +31,7 @@ def prepare_data(cfg: config.ConfigPrepareData):
     ds = DataStorage(
         path_data_raw=Path(cfg.dir.data_raw),
         path_data_geo=Path(cfg.dir.data_processed) / "download_geo_data",
+        path_data_stations=Path(cfg.dir.data_processed) / "prepare_stations"
     )
 
     _logger.info("Processing data ...")
@@ -41,7 +42,7 @@ def prepare_data(cfg: config.ConfigPrepareData):
     path_data_processed.mkdir(exist_ok=True, parents=True)
     path_df_train = path_data_processed / "df_features.parquet"
     _logger.info(f"Saving processed data to {path_df_train} ...")
-    df.to_parquet(path_df_train)
+    df.to_parquet(path_df_train, engine="fastparquet")
     
 
 

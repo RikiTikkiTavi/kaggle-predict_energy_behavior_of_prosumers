@@ -13,7 +13,6 @@ import lightgbm
 
 _logger = logging.getLogger(__name__)
 
-
 @hydra.main(config_path="../../configs", config_name="inference", version_base="1.3")
 def main(cfg: config.ConfigInference):
     pass

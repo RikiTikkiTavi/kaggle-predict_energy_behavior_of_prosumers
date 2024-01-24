@@ -17,6 +17,13 @@ _logger = logging.getLogger(__name__)
 def select_consumption(df: pd.DataFrame, is_consumption: bool = False) -> pd.DataFrame:
     return df.loc[df["is_consumption"] == int(is_consumption)]
 
+def replace_historical_with_forecast(df: pd.DataFrame) -> pd.DataFrame:
+    features = df.columns
+    historical_weather_features = [f for f in features if f.endswith("historical")]
+    corresponding_weather_features  = [f.replace("_historical", "_forecast") for f in historical_weather_features]
+    df = df.drop(columns=historical_weather_features)
+    df = df.rename({f_c: f_h for f_h, f_c in zip(historical_weather_features, corresponding_weather_features)}, axis=1)
+    return df
 
 @hydra.main(config_path="../../configs", config_name="train", version_base="1.3")
 def main(cfg: config.ConfigExperiment):
@@ -37,13 +44,18 @@ def main(cfg: config.ConfigExperiment):
         )
 
         _logger.info(f"Reading data from {path_df} ...")
-        df_features = pd.read_parquet(path_df).dropna()
+        df_features = pd.read_parquet(path_df, engine="fastparquet").dropna()
+
+        _logger.info(list(df_features.columns))
+
         val_start_date = pd.Timestamp.fromisoformat(cfg.split.val_start_date)
 
         model: joined_model.JoinedModel = hydra.utils.instantiate(cfg.model)
 
         df_train = df_features.loc[df_features["datetime"] < val_start_date]
         df_val = df_features.loc[df_features["datetime"] >= val_start_date]
+
+        print(df_val.dtypes.to_dict())
 
         model.fit(
             train_tups=(
@@ -53,10 +65,8 @@ def main(cfg: config.ConfigExperiment):
             )
         )
 
-        path_model = Path.cwd() / "model_joined.pickle"
-        _logger.info(f"Saving consumption model to {path_model} ...")
-        with open(path_model, "wb") as file:
-            pickle.dump(model, file)
+        path_model = Path.cwd() / "model_joined"
+        model.save(path_model)
 
         _logger.info("Validation on historical weather ...")
 
@@ -72,13 +82,21 @@ def main(cfg: config.ConfigExperiment):
 
         _logger.info(metrics_hist)
 
+        _logger.info("Reloading model ...")
+        model = joined_model.JoinedModel.load(path_model)
+        _logger.info(
+            model.evaluate(
+                df_val,
+                df_val["target"],
+                metrics={"hist_val_MAE": sklearn.metrics.mean_absolute_error},
+            )
+        )
+        
+
         _logger.info("Validation on forecast ...")
 
-        features = df_val.columns
-        historical_weather_features = [f for f in features if f.endswith("historical")]
-        corresponding_weather_features  = [f.replace("_historical", "_forecast") for f in historical_weather_features]
-        df_val = df_val.drop(columns=historical_weather_features)
-        df_val = df_val.rename({f_c: f_h for f_h, f_c in zip(historical_weather_features, corresponding_weather_features)}, axis=1)
+        _logger.info("Replacing historical features with forecast features in val df ...")
+        df_val = replace_historical_with_forecast(df_val)
 
         _logger.info(list(df_val.columns))
 
