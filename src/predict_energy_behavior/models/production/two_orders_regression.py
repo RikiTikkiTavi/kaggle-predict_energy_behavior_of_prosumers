@@ -52,7 +52,7 @@ class TwoOrdersRegression(ProductionRegressionBase[Literal[2]]):
         
         _logger.info("Fit 1 order ...")
         self._first_order_model.fit(*d_1)
-        _logger.info(f"Fit 1 order model:\n{str(self._first_order_model)}")
+        # _logger.info(f"Fit 1 order model:\n{str(self._first_order_model)}")
 
         X = d_2[0].copy()
         results_first_order = self._first_order_model.predict(X)

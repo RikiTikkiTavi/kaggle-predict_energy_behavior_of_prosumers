@@ -31,10 +31,11 @@ model_p:
       reg_lambda: 1.5
       max_depth: 16
       num_leaves: 500
-      min_child_samples: 50
+      min_child_samples: 162
       objective: "regression_l1"
-      device: "cpu"
-      n_jobs: 12
+      device: "cuda"
+      n_jobs: 8
+      verbosity: 0
     features: [
       "temperature_historical",
       "dewpoint_historical",
@@ -52,19 +53,16 @@ model_p:
       "cos(hour)",
       "sin(dayofyear)",
       "cos(dayofyear)",
-      "county",
-      "is_business",
       "product_type",
       "installed_capacity",
       "predictions_first_order",
     ]
 model_c:
-  _target_: predict_energy_behavior.models.production.second_order.LGBMSecondOrderModel
+  _target_: predict_energy_behavior.models.consumption.lgbm_regression.LGBMSecondOrderModel
   n_models: 8
   n_gpus: 8
   features: [
-    "county",
-    "is_business",
+    "predictions_production",
     "product_type",
     "day",
     "weekday",
@@ -174,7 +172,8 @@ model_c:
     reg_lambda: 1.5
     max_depth: 16
     num_leaves: 500
-    min_child_samples: 50
+    min_child_samples: 162
     objective: "regression_l1"
-    device: "cpu"
-    n_jobs: 12
+    device: "cuda"
+    n_jobs: 8
+    verbosity: 0

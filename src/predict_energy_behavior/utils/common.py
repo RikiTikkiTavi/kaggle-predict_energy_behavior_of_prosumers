@@ -4,6 +4,9 @@ from math import ceil
 from typing import Any, Dict, MutableMapping
 
 
+def format_county_name(name: str):
+    return "-".join(s.lower().capitalize() for s in name.split("-"))
+
 def flatten_dict(
     params: MutableMapping[Any, Any], delimiter: str = "/", parent_key: str = ""
 ) -> dict[str, Any]:

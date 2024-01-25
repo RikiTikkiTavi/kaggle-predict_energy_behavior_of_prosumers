@@ -1,5 +1,6 @@
 import logging
 import pickle
+import numpy as np
 import sklearn
 from sklearn.ensemble import VotingRegressor
 import predict_energy_behavior.config as config
@@ -11,19 +12,33 @@ import hydra
 import mlflow
 import lightgbm
 
+from typing import Generator
+
 _logger = logging.getLogger(__name__)
 
 
 def select_consumption(df: pd.DataFrame, is_consumption: bool = False) -> pd.DataFrame:
     return df.loc[df["is_consumption"] == int(is_consumption)]
 
+
 def replace_historical_with_forecast(df: pd.DataFrame) -> pd.DataFrame:
     features = df.columns
     historical_weather_features = [f for f in features if f.endswith("historical")]
-    corresponding_weather_features  = [f.replace("_historical", "_forecast") for f in historical_weather_features]
+    corresponding_weather_features = [
+        f.replace("_historical", "_forecast") for f in historical_weather_features
+    ]
     df = df.drop(columns=historical_weather_features)
-    df = df.rename({f_c: f_h for f_h, f_c in zip(historical_weather_features, corresponding_weather_features)}, axis=1)
+    df = df.rename(
+        {
+            f_c: f_h
+            for f_h, f_c in zip(
+                historical_weather_features, corresponding_weather_features
+            )
+        },
+        axis=1,
+    )
     return df
+
 
 @hydra.main(config_path="../../configs", config_name="train", version_base="1.3")
 def main(cfg: config.ConfigExperiment):
@@ -48,67 +63,79 @@ def main(cfg: config.ConfigExperiment):
 
         _logger.info(list(df_features.columns))
 
-        val_start_date = pd.Timestamp.fromisoformat(cfg.split.val_start_date)
+        cv = hydra.utils.instantiate(cfg.cv)
 
-        model: joined_model.JoinedModel = hydra.utils.instantiate(cfg.model)
+        metrics = {}
+        models = {}
 
-        df_train = df_features.loc[df_features["datetime"] < val_start_date]
-        df_val = df_features.loc[df_features["datetime"] >= val_start_date]
+        for fold_i, df_train, df_val in cv.split(df_features):
+            _logger.info(f"\n-------------- Fold {fold_i} --------------\n")
+            
+            model: joined_model.JoinedModel = hydra.utils.instantiate(cfg.model)
 
-        print(df_val.dtypes.to_dict())
-
-        model.fit(
-            train_tups=(
-                (df_features, df_features["target"]),
-                (df_train, df_train["target"]),
-                (df_train, df_train["target"]),
+            model.fit(
+                train_tups=(
+                    (df_train, df_train["target"]),
+                    (df_train, df_train["target"]),
+                    (df_train, df_train["target"]),
+                )
             )
-        )
 
-        path_model = Path.cwd() / "model_joined"
-        model.save(path_model)
+            models[fold_i] = model
 
-        _logger.info("Validation on historical weather ...")
+            path_model = Path.cwd() / "model_joined"
+            model.save(path_model)
 
-        metrics_hist = model.evaluate(
-            df_val,
-            df_val["target"],
-            metrics={"hist_val_MAE": sklearn.metrics.mean_absolute_error},
-        )
+            _logger.info("Validation on historical weather ...")
 
-        for submodel_key, submodel_metrics in metrics_hist.items():
-            for metric_name, metric_value in submodel_metrics.items():
-                mlflow.log_metric(key=f"{submodel_key}/{metric_name}", value=metric_value, step=0)
-
-        _logger.info(metrics_hist)
-
-        _logger.info("Reloading model ...")
-        model = joined_model.JoinedModel.load(path_model)
-        _logger.info(
-            model.evaluate(
+            fold_metrics_hist = model.evaluate(
                 df_val,
                 df_val["target"],
-                metrics={"hist_val_MAE": sklearn.metrics.mean_absolute_error},
+                metrics={"MAE": sklearn.metrics.mean_absolute_error},
             )
-        )
-        
 
-        _logger.info("Validation on forecast ...")
+            for submodel_key, submodel_metrics in fold_metrics_hist.items():
+                for metric_name, metric_value in submodel_metrics.items():
+                    mlflow.log_metric(
+                        key=f"{fold_i}/h/{submodel_key}/{metric_name}", value=metric_value, step=0
+                    )
 
-        _logger.info("Replacing historical features with forecast features in val df ...")
-        df_val = replace_historical_with_forecast(df_val)
+            _logger.info(f"Historical metrics on fold={fold_i}: \n{fold_metrics_hist}")
 
-        _logger.info(list(df_val.columns))
+            _logger.info("Validation on forecast ...")
 
-        metrics_forecast = model.evaluate(
-            df_val,
-            df_val["target"],
-            metrics={"forecast_val_MAE": sklearn.metrics.mean_absolute_error},
-        )
+            _logger.info(
+                "Replacing historical features with forecast features in val df ..."
+            )
+            df_val = replace_historical_with_forecast(df_val)
 
-        _logger.info(metrics_forecast)
+            fold_metrics_forecast = model.evaluate(
+                df_val,
+                df_val["target"],
+                metrics={"MAE": sklearn.metrics.mean_absolute_error},
+            )
 
-        return metrics_hist["total"]["hist_val_MAE"]
+            for submodel_key, submodel_metrics in fold_metrics_forecast.items():
+                for metric_name, metric_value in submodel_metrics.items():
+                    mlflow.log_metric(
+                        key=f"{fold_i}/f/{submodel_key}/{metric_name}", value=metric_value, step=0
+                    )
+
+            _logger.info(f"Forecast metrics on fold={fold_i}: \n{fold_metrics_forecast}")
+
+            metrics[fold_i] = {
+                "h": fold_metrics_hist,
+                "f": fold_metrics_forecast
+            }
+
+        total_avg_forecast = np.mean([
+            metrics_fold["f"]["total"]["MAE"] for metrics_fold in metrics.values()
+        ])
+
+        mlflow.log_metric(key="total/f/MAE", value=total_avg_forecast, step=0)
+        _logger.info(f"total/f/MAE={total_avg_forecast}")
+
+        return total_avg_forecast
 
 
 if __name__ == "__main__":

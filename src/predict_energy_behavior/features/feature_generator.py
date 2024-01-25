@@ -81,23 +81,19 @@ class FeaturesGenerator:
         df_weather: pl.DataFrame,
         weather_columns: list[str],
     ):
-        df_stations = self.data_storage.df_stations
-
         return (
             df_weather.with_columns(
                 pl.col("latitude").cast(pl.datatypes.Float32),
                 pl.col("longitude").cast(pl.datatypes.Float32),
             )
             .join(
-                df_stations,
+                self.data_storage.df_stations,
                 on=["longitude", "latitude"],
                 how="left",
             )
-            .group_by(["datetime", "county"])
-            .agg(
-                *[(pl.col(c) * pl.col("weights")).sum() for c in weather_columns]
-            )
             .filter(pl.col("county").is_not_null())
+            .group_by(["datetime", "county"])
+            .agg(*[(pl.col(c) * pl.col("weights")).sum() for c in weather_columns])
         )
 
     def _add_historical_weather_features(self, df_features: pl.DataFrame):
@@ -159,10 +155,11 @@ class FeaturesGenerator:
         datetime_start = df_features["datetime"].min() - timedelta(max(lags))
 
         df_forecast_weather = (
-            df_forecast_weather
-            .filter((pl.col("hours_ahead") >= 24))
+            df_forecast_weather.filter((pl.col("hours_ahead") >= 24))
             .with_columns(
-                (pl.col("origin_datetime") + pl.duration(hours=pl.col("hours_ahead"))).alias("datetime")
+                (
+                    pl.col("origin_datetime") + pl.duration(hours=pl.col("hours_ahead"))
+                ).alias("datetime")
             )
             .drop(["hours_ahead", "forecast_datetime"])
             .with_columns(

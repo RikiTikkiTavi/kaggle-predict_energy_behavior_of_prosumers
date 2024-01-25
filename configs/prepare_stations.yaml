@@ -10,6 +10,6 @@ defaults:
   - _self_
   - dir: alpha
 
-min_weight: 0.3
-max_distance: 100.0
+min_weight: 0.1
+max_distance: 150.0
 on_land_only: true

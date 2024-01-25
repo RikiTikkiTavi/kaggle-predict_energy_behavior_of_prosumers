@@ -4,6 +4,7 @@ import polars as pl
 import os
 import pandas as pd
 
+from predict_energy_behavior.utils.common import format_county_name
 
 class DataStorage:
     root: str
@@ -161,7 +162,7 @@ class DataStorage:
         with open(path_data_raw / "county_id_to_name_map.json", "r") as file:
             county_id_to_name = json.load(file)
             county_name_to_id = {
-                n.lower().capitalize(): int(i) for i, n in county_id_to_name.items()
+                format_county_name(n): int(i) for i, n in county_id_to_name.items()
             }
 
         self.df_capitals = self.df_capitals.with_columns(

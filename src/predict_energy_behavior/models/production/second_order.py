@@ -28,11 +28,22 @@ class SecondOrderModel(ProductionRegressionBase[Literal[1]]):
         return self
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
-        return self.model.predict(X[self.features])
+        
+        X = X.assign(**{
+            "predictions_first_order": X["predictions_first_order"] / X["installed_capacity"]
+        })
+
+        return self.model.predict(X[self.features]) * X["installed_capacity"]
 
     def fit(self, X: pd.DataFrame, y: np.ndarray) -> "SecondOrderModel":
+        assert "predictions_first_order" in X.columns and "installed_capacity" in X.columns
+        
+        X["predictions_first_order"] /= X["installed_capacity"]
+        y /= X["installed_capacity"]
+        
         X_train = X[self.features]
         self.model.fit(X_train, y)
+        
         return self
 
 
@@ -76,13 +87,3 @@ class LGBMSecondOrderModel(SecondOrderModel):
             if hasattr(estimator, "booster_"):
                 model_path = path / f"{name_prefix}{name}.txt"
                 estimator.booster_.save_model(model_path)
-
-    def predict(self, X: pd.DataFrame) -> ndarray:
-        def get_categorical_feature(model):
-            import ast
-            model_str_list = str(model.model_to_string()).split("\n")
-            categorical_feature_str = list(filter(lambda x: 'categorical_feature' in x, model_str_list))[0]
-            categorical_feature = ast.literal_eval("["+categorical_feature_str.split()[1])
-            return categorical_feature
-        
-        return super().predict(X)

@@ -17,8 +17,9 @@ from global_land_mask import globe
 from datetime import timedelta
 import hydra
 
-_logger = logging.getLogger(__name__)
+from predict_energy_behavior.utils.common import format_county_name
 
+_logger = logging.getLogger(__name__)
 
 def find_relevant_county_stations(
     df_capitals: pl.DataFrame,
@@ -68,7 +69,6 @@ def find_relevant_county_stations(
         },
     )
 
-
 def calculate_weights_of_stations(df: pl.DataFrame, min_weight=0.3):
     d_max = df["dist"].max()
     d_ref = d_max / min_weight if min_weight > 0 else d_max
@@ -80,6 +80,18 @@ def calculate_weights_of_stations(df: pl.DataFrame, min_weight=0.3):
     ).with_columns((pl.col("weights") / pl.col("weights").sum()).alias("weights"))
 
     return df
+
+def get_stations_for_unknown_county(df_relevant_stations: pl.DataFrame) -> pl.DataFrame:
+    return (
+        df_relevant_stations
+            .unique(subset=["longitude","latitude"])
+            .with_columns(
+                pl.lit(12, dtype=pl.Int64).alias("county"),
+                pl.lit(0.0).alias("dist"),
+                (pl.lit(1.0) / pl.col("longitude").count()).alias("weights"),
+            )
+    )
+
 
 
 @hydra.main(
@@ -98,7 +110,7 @@ def prepare_stations(cfg: config.ConfigPrepareStations):
     with open(path_data_raw / "county_id_to_name_map.json", "r") as file:
         county_id_to_name = json.load(file)
         county_name_to_id = {
-            n.lower().capitalize(): int(i) for i, n in county_id_to_name.items()
+            format_county_name(n): int(i) for i, n in county_id_to_name.items()
         }
     df_capitals = (
         pl.read_csv(Path(cfg.dir.data_processed) / "download_geo_data" / "capitals.csv")
@@ -118,6 +130,11 @@ def prepare_stations(cfg: config.ConfigPrepareStations):
     df_stations_with_weights = df_relevant_stations.group_by("county").map_groups(
         partial(calculate_weights_of_stations, min_weight=cfg.min_weight)
     ).drop_nulls("county")
+
+    _logger.info("Calculating stations of Unknown ...")
+    df_unknown_stations_with_weights = get_stations_for_unknown_county(df_relevant_stations)
+
+    df_stations_with_weights = pl.concat([df_stations_with_weights, df_unknown_stations_with_weights])
 
     _logger.debug(df_stations_with_weights)
 

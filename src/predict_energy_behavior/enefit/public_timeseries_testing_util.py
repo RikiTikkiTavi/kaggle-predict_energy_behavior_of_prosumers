@@ -87,7 +87,3 @@ class MockApi:
 
         self.predictions.append(user_predictions)
         self._status = 'prediction_received'
-
-
-def make_env():
-    return MockApi()

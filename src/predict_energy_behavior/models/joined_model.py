@@ -20,6 +20,10 @@ from predict_energy_behavior.models.consumption.base_model import (
     ConsumptionRegressionBase,
 )
 
+from predict_energy_behavior.models.consumption.lgbm_regression import (
+    LGBMSecondOrderModel as LGBMSecondOrderModelConsumption,
+)
+
 _logger = logging.getLogger(__name__)
 
 
@@ -42,6 +46,7 @@ class JoinedModel(RegressionBase[Literal[2]]):
         preds_p = pd.Series(self._model_p.predict(X_p), index=X_p.index)
 
         X_c = select_consumption(X, True)
+        X_c = X_c.assign(**{"predictions_production": preds_p})
         preds_c = pd.Series(self._model_c.predict(X_c), index=X_c.index)
 
         return pd.concat([preds_p, preds_c]).loc[X.index].to_numpy()
@@ -72,6 +77,7 @@ class JoinedModel(RegressionBase[Literal[2]]):
         _logger.info("Fit consumption model ...")
 
         X_c = select_consumption(train_tups[2][0], True)
+        X_c = X_c.assign(**{"predictions_production": y_p_2})
         y_c = y_3.loc[X_c.index].to_numpy()
         self._model_c.fit(X_c, y_c)
 
@@ -89,6 +95,7 @@ class JoinedModel(RegressionBase[Literal[2]]):
         self._model_p.fit(X_p, y_p)
 
         X_c = select_consumption(X, True)
+        X_c = X_c.assign({"predictions_production": y_p})
         y_c = y.loc[X_c.index].to_numpy()
         self._model_c.fit(X_c, y_c)
 
@@ -114,6 +121,7 @@ class JoinedModel(RegressionBase[Literal[2]]):
         preds_p_2 = pd.Series(self._model_p.predict(X_p), index=X_p.index)
 
         X_c = select_consumption(X, True)
+        X_c = X_c.assign(**{"predictions_production": preds_p_2})
         preds_c = pd.Series(self._model_c.predict(X_c), index=X_c.index)
 
         preds = pd.concat([preds_p_2, preds_c]).loc[X.index].to_numpy()
@@ -129,7 +137,7 @@ class JoinedModel(RegressionBase[Literal[2]]):
     def load(cls, path: Path) -> "JoinedModel":
         return JoinedModel(
             model_p=TwoOrdersRegression.load(path / "production"),
-            model_c=LGBMSecondOrderModel.load(path / "consumption")
+            model_c=LGBMSecondOrderModelConsumption.load(path / "consumption")
         )
 
     def save(self, path: Path):

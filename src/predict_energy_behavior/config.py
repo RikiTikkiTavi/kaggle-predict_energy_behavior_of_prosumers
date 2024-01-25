@@ -27,21 +27,18 @@ class ConfigPrepareData:
     phase: str
 
 @dataclass
-class ConfigSplit:
-    val_start_date: str
-
-@dataclass
 class ConfigExperiment:
     dir: ConfigDir
     phase: str
     mlflow_tracking_uri: Optional[str]
     exp_name: str
     run_name: str
-    split: ConfigSplit
+    cv: Any
     model: Any
 
 @dataclass
 class ConfigInference:
     dir: ConfigDir
-    debug: bool
+    phase: str
     path_model: str
+    debug: bool = False

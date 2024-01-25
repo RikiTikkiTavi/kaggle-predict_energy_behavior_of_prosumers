@@ -403,14 +403,14 @@ class GroupedSolarOutputRegression(ProductionRegressionBase[Literal[1]]):
 
     def predict(self, X: pd.DataFrame) -> ndarray:
         X = X.copy()
-        X["predictions"] = X.groupby(self._group_columns, group_keys=False).apply(
+        X["predictions"] = X.groupby(self._group_columns, group_keys=False, observed=False).apply(
             lambda df: self._predict_group(df.name, df)
         )
         return X["predictions"].to_numpy()
 
     def fit(self, X: pd.DataFrame, y: np.ndarray):
         X = X.assign(**{"__target": y})
-        group_to_df = {g: df for g, df in X.groupby(self._group_columns)}
+        group_to_df = {g: df for g, df in X.groupby(self._group_columns, observed=False)}
 
         with multiprocessing.Pool(processes=self._n_processes) as pool:
             args = [
