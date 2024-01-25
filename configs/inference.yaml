@@ -1,0 +1,18 @@
+# ---------- Overriding hydra default configs ----------
+hydra:
+  job:
+    name: eb-inference
+    chdir: true
+  run:
+    dir: ${dir.outputs}/${phase}/${now:%Y-%m-%d_%H-%M-%S}/${hydra.job.override_dirname}
+  sweep:
+    dir: ${dir.output_dir}/${hydra.job.name}/
+    subdir: ${hydra.job.override_dirname}
+
+defaults:
+  - _self_
+  - dir: alpha
+
+phase: test
+path_model: "/beegfs/ws/0/s4610340-energy_behavior/yahor/kaggle-predict_energy_behavior_of_prosumers/outputs/train/wo-county-isb/2024-01-24_22-32-29/run_name=wo-county-isb/model_joined"
+debug: True

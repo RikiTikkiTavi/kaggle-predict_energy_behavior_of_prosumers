@@ -1,0 +1,182 @@
+_target_: predict_energy_behavior.models.joined_model.JoinedModel
+_recursive_: True
+model_p:
+  _target_: predict_energy_behavior.models.production.two_orders_regression.TwoOrdersRegression
+  _recursive_: True
+  first_order_model:
+    _target_: predict_energy_behavior.models.production.solar_output_regression.GroupedSolarOutputRegression
+    group_columns:
+      - "product_type"
+    n_processes: 12
+    regressors: 
+      temperature: "temperature_historical"
+      dewpoint: "dewpoint_historical"
+      shortwave_radiation: "surface_solar_radiation_downwards_forecast"
+      snowfall: "snowfall_historical"
+      rain: "rain_historical"
+      windspeed_10m: "windspeed_10m_historical"
+      installed_capacity: "installed_capacity"
+      
+  second_order_model:
+    _target_: predict_energy_behavior.models.production.second_order.LGBMSecondOrderModel
+    n_models: 8
+    n_jobs: 8
+    n_gpus: 8
+    parameters:
+      n_estimators: 10
+      learning_rate: 0.06
+      colsample_bytree: 0.9
+      colsample_bynode: 0.6
+      reg_alpha: 3.5
+      reg_lambda: 1.5
+      max_depth: 16
+      num_leaves: 500
+      min_child_samples: 50
+      objective: "regression_l1"
+      device: "cuda"
+      n_jobs: 1
+      verbosity: 0
+    features: [
+      "temperature_historical",
+      "dewpoint_historical",
+      "rain_historical",
+      "snowfall_historical",
+      "cloudcover_total_historical",
+      "cloudcover_low_historical",
+      "cloudcover_mid_historical",
+      "cloudcover_high_historical",
+      "surface_solar_radiation_downwards_forecast",
+      "windspeed_10m_historical",
+      "10_metre_u_wind_component_historical",
+      "10_metre_v_wind_component_historical",
+      "sin(hour)",
+      "cos(hour)",
+      "sin(dayofyear)",
+      "cos(dayofyear)",
+      "county",
+      "is_business",
+      "product_type",
+      "installed_capacity",
+      "predictions_first_order",
+    ]
+model_c:
+  _target_: predict_energy_behavior.models.consumption.lgbm_regression.LGBMSecondOrderModel
+  n_models: 8
+  n_gpus: 8
+  features: [
+    "county",
+    "is_business",
+    "product_type",
+    "day",
+    "weekday",
+    "month",
+    "year",
+    "sin(dayofyear)",
+    "cos(dayofyear)",
+    "sin(hour)",
+    "cos(hour)",
+    "eic_count",
+    "installed_capacity",
+    # Historical 0h
+    "temperature_historical",
+    "dewpoint_historical",
+    "rain_historical",
+    "snowfall_historical",
+    "cloudcover_total_historical",
+    "cloudcover_low_historical",
+    "cloudcover_mid_historical",
+    "cloudcover_high_historical",
+    "windspeed_10m_historical",
+    "direct_solar_radiation_historical",
+    "10_metre_u_wind_component_historical",
+    "10_metre_v_wind_component_historical",
+    # Historical h24
+    "temperature_historical_h24",
+    "dewpoint_historical_h24",
+    "rain_historical_h24",
+    "snowfall_historical_h24",
+    "cloudcover_total_historical_h24",
+    "cloudcover_low_historical_h24",
+    "cloudcover_mid_historical_h24",
+    "cloudcover_high_historical_h24",
+    "direct_solar_radiation_historical_h24",
+    "diffuse_radiation_historical_h24",
+    "windspeed_10m_historical_h24",
+    "10_metre_u_wind_component_historical_h24",
+    "10_metre_v_wind_component_historical_h24",
+    # Historical h48
+    "temperature_historical_h48",
+    "dewpoint_historical_h48",
+    "rain_historical_h48",
+    "snowfall_historical_h48",
+    "cloudcover_total_historical_h48",
+    "cloudcover_low_historical_h48",
+    "cloudcover_mid_historical_h48",
+    "cloudcover_high_historical_h48",
+    "direct_solar_radiation_historical_h48",
+    "diffuse_radiation_historical_h48",
+    "windspeed_10m_historical_h48",
+    "10_metre_u_wind_component_historical_h48",
+    "10_metre_v_wind_component_historical_h48",
+    # Historical h168
+    "temperature_historical_h168",
+    "dewpoint_historical_h168",
+    "rain_historical_h168",
+    "snowfall_historical_h168",
+    "cloudcover_total_historical_h168",
+    "cloudcover_low_historical_h168",
+    "cloudcover_mid_historical_h168",
+    "cloudcover_high_historical_h168",
+    "direct_solar_radiation_historical_h168",
+    "diffuse_radiation_historical_h168",
+    "windspeed_10m_historical_h168",
+    "10_metre_u_wind_component_historical_h168",
+    "10_metre_v_wind_component_historical_h168",
+    # Target features
+    "target_48h",
+    "target_72h",
+    "target_96h",
+    "target_120h",
+    "target_144h",
+    "target_168h",
+    "target_192h",
+    "target_216h",
+    "target_240h",
+    "target_264h",
+    "target_288h",
+    "target_312h",
+    "target_336h",
+    "target_all_type_sum_48h",
+    "target_all_county_type_sum_48h",
+    "target_all_type_sum_72h",
+    "target_all_county_type_sum_72h",
+    "target_all_type_sum_168h",
+    "target_all_county_type_sum_168h",
+    "target_all_type_sum_336h",
+    "target_all_county_type_sum_336h",
+    "target_mean",
+    "target_std",
+    "target_ratio_168_336",
+    "target_ratio_48_216",
+    "target_ratio_72_240",
+    "target_ratio_48_72",
+    "target_all_type_sum_ratio_48_72",
+    "target_all_type_sum_ratio_168_336",
+    "target_all_county_type_sum_ratio_48_72",
+    "target_all_county_type_sum_ratio_168_336",
+    "is_country_holiday"
+  ]
+  parameters:
+    n_estimators: 10
+    learning_rate: 0.06
+    colsample_bytree: 0.9
+    colsample_bynode: 0.6
+    reg_alpha: 3.5
+    reg_lambda: 1.5
+    max_depth: 16
+    num_leaves: 500
+    min_child_samples: 50
+    objective: "regression_l1"
+    device: "cuda"
+    n_jobs: 1
+    verbosity: 0
