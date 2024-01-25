@@ -59,17 +59,11 @@ def main(cfg: config.ConfigInference):
         df_new_gas_prices,
         df_sample_prediction,
     ) in iter_test:
-        if not cfg.debug:
-            if not bool(df_test["currently_scored"].iloc[0]):
-                df_sample_prediction["target"] = 0.0
-                env.predict(df_sample_prediction)
-                continue
-
+        t0 = time.time()
+        
         df_new_target["target"] = df_new_target["target"].fillna(0.0)
         df_new_client["installed_capacity"] = df_new_client["installed_capacity"].fillna(1000.0)
         df_new_client["eic_count"] = df_new_client["eic_count"].fillna(100)
-
-        t0 = time.time()
 
         date_columns_to_datetime(df_new_electricity_prices)
         date_columns_to_datetime(df_new_forecast_weather)
@@ -85,6 +79,12 @@ def main(cfg: config.ConfigInference):
             df_new_historical_weather=df_new_historical_weather,
             df_new_target=df_new_target,
         )
+
+        if not cfg.debug:
+            if not bool(df_test["currently_scored"].iloc[0]):
+                df_sample_prediction["target"] = 0.0
+                env.predict(df_sample_prediction)
+                continue
 
         t_read = time.time()
         _logger.info(f"Time to read: {t_read-t0}s")

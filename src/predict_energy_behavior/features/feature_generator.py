@@ -292,8 +292,12 @@ class FeaturesGenerator:
         return df_features
 
     def _add_target_norm_features(self, df_features):
+        datetime_start = df_features["datetime"].min() - timedelta(hours=21*24)
+        
         df_target = (
-            self.data_storage.df_target.with_columns(
+            self.data_storage.df_target
+            .filter(pl.col("datetime") >= datetime_start)
+            .with_columns(
                 pl.col("datetime").cast(pl.Date).alias("date")
             )
             .join(
