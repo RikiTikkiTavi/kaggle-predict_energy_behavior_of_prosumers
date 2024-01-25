@@ -9,6 +9,8 @@ class ConfigDir:
     data_raw: Path
     data_interim: Path
     data_processed: Path
+    data_geo: Path
+    data_stations: Path
 
 @dataclass
 class ConfigDownloadGeoData:
@@ -40,5 +42,5 @@ class ConfigExperiment:
 class ConfigInference:
     dir: ConfigDir
     phase: str
-    path_model: str
+    model: Any
     debug: bool = False

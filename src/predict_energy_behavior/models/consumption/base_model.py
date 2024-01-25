@@ -15,14 +15,17 @@ class ConsumptionRegressionBase(abc.ABC):
             "predictions_production": X["predictions_production"] / X["installed_capacity"]
         })
 
-        return self.model.predict(X[self.features])
+        return self.model.predict(X[self.features]) * X["eic_count"]
 
     def fit(self, X: pd.DataFrame, y: np.ndarray) -> "ConsumptionRegressionBase":
         assert "predictions_production" in X.columns and "installed_capacity" in X.columns
-        
+        assert "eic_count" in X.columns
+
         X = X.assign(**{
             "predictions_production": X["predictions_production"] / X["installed_capacity"]
         })
+
+        y /= X["eic_count"]
 
         X_train = X[self.features]
         self.model.fit(X_train, y)

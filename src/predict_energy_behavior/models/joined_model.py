@@ -134,7 +134,9 @@ class JoinedModel(RegressionBase[Literal[2]]):
         }
 
     @classmethod
-    def load(cls, path: Path) -> "JoinedModel":
+    def load(cls, path: Path | str) -> "JoinedModel":
+        if type(path) is str:
+            path = Path(path)
         return JoinedModel(
             model_p=TwoOrdersRegression.load(path / "production"),
             model_c=LGBMSecondOrderModelConsumption.load(path / "consumption")

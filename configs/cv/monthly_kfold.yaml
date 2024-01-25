@@ -1,5 +1,5 @@
 _target_: predict_energy_behavior.cv.MonthlyKFold
-max_offset_h: 168
+max_offset_h: 0
 months:
   - "2022-07"
   - "2022-10"

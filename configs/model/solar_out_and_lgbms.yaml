@@ -33,8 +33,8 @@ model_p:
       num_leaves: 500
       min_child_samples: 162
       objective: "regression_l1"
-      device: "cuda"
-      n_jobs: 8
+      device: "cpu"
+      n_jobs: 24
       verbosity: 0
     features: [
       "temperature_historical",
@@ -130,37 +130,37 @@ model_c:
     "10_metre_u_wind_component_historical_h168",
     "10_metre_v_wind_component_historical_h168",
     # Target features
-    "target_48h",
-    "target_72h",
-    "target_96h",
-    "target_120h",
-    "target_144h",
-    "target_168h",
-    "target_192h",
-    "target_216h",
-    "target_240h",
-    "target_264h",
-    "target_288h",
-    "target_312h",
-    "target_336h",
-    "target_all_type_sum_48h",
-    "target_all_county_type_sum_48h",
-    "target_all_type_sum_72h",
-    "target_all_county_type_sum_72h",
-    "target_all_type_sum_168h",
-    "target_all_county_type_sum_168h",
-    "target_all_type_sum_336h",
-    "target_all_county_type_sum_336h",
-    "target_mean",
-    "target_std",
-    "target_ratio_168_336",
-    "target_ratio_48_216",
-    "target_ratio_72_240",
-    "target_ratio_48_72",
-    "target_all_type_sum_ratio_48_72",
-    "target_all_type_sum_ratio_168_336",
-    "target_all_county_type_sum_ratio_48_72",
-    "target_all_county_type_sum_ratio_168_336",
+    "target_per_eic_48h",
+    "target_per_eic_72h",
+    "target_per_eic_96h",
+    "target_per_eic_120h",
+    "target_per_eic_144h",
+    "target_per_eic_168h",
+    "target_per_eic_192h",
+    "target_per_eic_216h",
+    "target_per_eic_240h",
+    "target_per_eic_264h",
+    "target_per_eic_288h",
+    "target_per_eic_312h",
+    "target_per_eic_336h",
+    "target_per_eic_all_type_sum_48h",
+    "target_per_eic_all_county_type_sum_48h",
+    "target_per_eic_all_type_sum_72h",
+    "target_per_eic_all_county_type_sum_72h",
+    "target_per_eic_all_type_sum_168h",
+    "target_per_eic_all_county_type_sum_168h",
+    "target_per_eic_all_type_sum_336h",
+    "target_per_eic_all_county_type_sum_336h",
+    "target_per_eic_mean",
+    "target_per_eic_std",
+    "target_per_eic_ratio_168_336",
+    "target_per_eic_ratio_48_216",
+    "target_per_eic_ratio_72_240",
+    "target_per_eic_ratio_48_72",
+    "target_per_eic_all_type_sum_ratio_48_72",
+    "target_per_eic_all_type_sum_ratio_168_336",
+    "target_per_eic_all_county_type_sum_ratio_48_72",
+    "target_per_eic_all_county_type_sum_ratio_168_336",
     "is_country_holiday"
   ]
   parameters:
@@ -174,6 +174,6 @@ model_c:
     num_leaves: 500
     min_child_samples: 162
     objective: "regression_l1"
-    device: "cuda"
-    n_jobs: 8
+    device: "cpu"
+    n_jobs: 24
     verbosity: 0

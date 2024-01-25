@@ -13,10 +13,9 @@ import predict_energy_behavior.utils.common as common
 import pandas as pd
 from pathlib import Path
 import hydra
-import mlflow
-import lightgbm
-import predict_energy_behavior.enefit.public_timeseries_testing_util as enefit
+import predict_energy_behavior.enefit.public_timeseries_testing_util
 import gc
+import sys
 
 _logger = logging.getLogger(__name__)
 
@@ -31,16 +30,24 @@ def date_columns_to_datetime(df):
 
 @hydra.main(config_path="../../configs", config_name="inference", version_base="1.3")
 def main(cfg: config.ConfigInference):
-    model = joined_model.JoinedModel.load(Path(cfg.path_model))
+    _logger.info(f"Loading model {cfg.model} ...")
+    model = hydra.utils.instantiate(cfg.model)
+    
     ds = data_storage.DataStorage(
         path_data_raw=Path(cfg.dir.data_raw),
-        path_data_geo=Path(cfg.dir.data_processed) / "download_geo_data",
-        path_data_stations=Path(cfg.dir.data_processed) / "prepare_stations",
+        path_data_geo=Path(cfg.dir.data_geo),
+        path_data_stations=Path(cfg.dir.data_stations),
     )
     feature_gen = feature_generator.FeaturesGenerator(ds, {})
 
-    env = enefit.MockApi(Path(cfg.dir.data_raw) / "example_test_files")
-    iter_test = env.iter_test()
+    if cfg.debug:
+        env = predict_energy_behavior.enefit.public_timeseries_testing_util.MockApi(Path(cfg.dir.data_raw) / "example_test_files")
+        iter_test = env.iter_test()
+    else:
+        sys.path.append(f"{cfg.dir.data_raw}/enefit")
+        import enefit
+        env = enefit.make_env()
+        iter_test = env.iter_test()
 
     for (
         df_test,
@@ -52,15 +59,15 @@ def main(cfg: config.ConfigInference):
         df_new_gas_prices,
         df_sample_prediction,
     ) in iter_test:
-        # if not bool(df_test["currently_scored"].iloc[0]):
-        #    df_sample_prediction["target"] = 0.0
-        #    env.predict(df_sample_prediction)
-        #    continue
+        if not cfg.debug:
+            if not bool(df_test["currently_scored"].iloc[0]):
+                df_sample_prediction["target"] = 0.0
+                env.predict(df_sample_prediction)
+                continue
 
         df_new_target["target"] = df_new_target["target"].fillna(0.0)
-        df_new_client["installed_capacity"] = df_new_client[
-            "installed_capacity"
-        ].fillna(1000.0)
+        df_new_client["installed_capacity"] = df_new_client["installed_capacity"].fillna(1000.0)
+        df_new_client["eic_count"] = df_new_client["eic_count"].fillna(100)
 
         t0 = time.time()
 
@@ -80,7 +87,7 @@ def main(cfg: config.ConfigInference):
         )
 
         t_read = time.time()
-        print(f"Time to read: {t_read-t0}s")
+        _logger.info(f"Time to read: {t_read-t0}s")
 
         # separately generate test features for both models
 
@@ -90,13 +97,16 @@ def main(cfg: config.ConfigInference):
         df_test_features = train.replace_historical_with_forecast(df_test_features)
 
         t_process = time.time()
-        print(f"Time to process: {t_process-t_read}s")
+        _logger.info(f"Time to process: {t_process-t_read}s")
 
         preds = model.predict(df_test_features).clip(0)
         df_sample_prediction["target"] = preds
 
+        if cfg.debug:
+            assert not np.isnan(preds).any()
+
         t_predict = time.time()
-        print(f"Time to predict: {t_predict-t_process}s")
+        _logger.info(f"Time to predict: {t_predict-t_process}s")
 
         env.predict(df_sample_prediction)
         gc.collect()

@@ -156,18 +156,12 @@ class FeaturesGenerator:
 
         df_forecast_weather = (
             df_forecast_weather.filter((pl.col("hours_ahead") >= 24))
-            .with_columns(
-                (
-                    pl.col("origin_datetime") + pl.duration(hours=pl.col("hours_ahead"))
-                ).alias("datetime")
-            )
+            .with_columns(pl.col("forecast_datetime").alias("datetime"))
             .drop(["hours_ahead", "forecast_datetime"])
             .with_columns(
                 pl.col("latitude").cast(pl.datatypes.Float32),
                 pl.col("longitude").cast(pl.datatypes.Float32),
-                (pl.col("total_precipitation") - 1000 * pl.col("snowfall")).alias(
-                    "rain"
-                ),
+                (pl.col("total_precipitation") - pl.col("snowfall")).clip(0.0).alias("rain"),
                 (self._snowfall_mwe_to_cm(pl.col("snowfall"))),
                 (
                     (
@@ -297,6 +291,129 @@ class FeaturesGenerator:
 
         return df_features
 
+    def _add_target_norm_features(self, df_features):
+        df_target = (
+            self.data_storage.df_target.with_columns(
+                pl.col("datetime").cast(pl.Date).alias("date")
+            )
+            .join(
+                self.data_storage.df_client.with_columns(pl.col("date").cast(pl.Date)),
+                on=["county", "is_business", "product_type", "date"],
+                how="left",
+            )
+            .with_columns(
+                (pl.col("target") / pl.col("eic_count")).alias("target_per_eic")
+            )
+            .select(
+                "datetime",
+                "county",
+                "is_business",
+                "product_type",
+                "is_consumption",
+                "target_per_eic",
+            )
+        )
+
+        df_target_all_type_sum = (
+            df_target.group_by(["datetime", "county", "is_business", "is_consumption"])
+            .sum()
+            .drop("product_type")
+        )
+
+        df_target_all_county_type_sum = (
+            df_target.group_by(["datetime", "is_business", "is_consumption"])
+            .sum()
+            .drop("product_type", "county")
+        )
+
+        for hours_lag in [
+            2 * 24,
+            3 * 24,
+            4 * 24,
+            5 * 24,
+            6 * 24,
+            7 * 24,
+            8 * 24,
+            9 * 24,
+            10 * 24,
+            11 * 24,
+            12 * 24,
+            13 * 24,
+            14 * 24,
+        ]:
+            df_features = df_features.join(
+                df_target.with_columns(
+                    pl.col("datetime") + pl.duration(hours=hours_lag)
+                ).rename({"target_per_eic": f"target_per_eic_{hours_lag}h"}),
+                on=[
+                    "county",
+                    "is_business",
+                    "product_type",
+                    "is_consumption",
+                    "datetime",
+                ],
+                how="left",
+            )
+
+        for hours_lag in [2 * 24, 3 * 24, 7 * 24, 14 * 24]:
+            df_features = df_features.join(
+                df_target_all_type_sum.with_columns(
+                    pl.col("datetime") + pl.duration(hours=hours_lag)
+                ).rename(
+                    {"target_per_eic": f"target_per_eic_all_type_sum_{hours_lag}h"}
+                ),
+                on=["county", "is_business", "is_consumption", "datetime"],
+                how="left",
+            )
+
+            df_features = df_features.join(
+                df_target_all_county_type_sum.with_columns(
+                    pl.col("datetime") + pl.duration(hours=hours_lag)
+                ).rename(
+                    {
+                        "target_per_eic": f"target_per_eic_all_county_type_sum_{hours_lag}h"
+                    }
+                ),
+                on=["is_business", "is_consumption", "datetime"],
+                how="left",
+                suffix=f"_all_county_type_sum_{hours_lag}h",
+            )
+
+        cols_for_stats = [
+            f"target_per_eic_{hours_lag}h"
+            for hours_lag in [2 * 24, 3 * 24, 4 * 24, 5 * 24]
+        ]
+        df_features = df_features.with_columns(
+            df_features.select(cols_for_stats)
+            .mean(axis=1)
+            .alias(f"target_per_eic_mean"),
+            df_features.select(cols_for_stats)
+            .transpose()
+            .std()
+            .transpose()
+            .to_series()
+            .alias(f"target_per_eic_std"),
+        )
+
+        for target_prefix, lag_nominator, lag_denomonator in [
+            ("target_per_eic", 24 * 7, 24 * 14),
+            ("target_per_eic", 24 * 2, 24 * 9),
+            ("target_per_eic", 24 * 3, 24 * 10),
+            ("target_per_eic", 24 * 2, 24 * 3),
+            ("target_per_eic_all_type_sum", 24 * 2, 24 * 3),
+            ("target_per_eic_all_type_sum", 24 * 7, 24 * 14),
+            ("target_per_eic_all_county_type_sum", 24 * 2, 24 * 3),
+            ("target_per_eic_all_county_type_sum", 24 * 7, 24 * 14),
+        ]:
+            df_features = df_features.with_columns(
+                (
+                    pl.col(f"{target_prefix}_{lag_nominator}h")
+                    / (pl.col(f"{target_prefix}_{lag_denomonator}h") + 1e-3)
+                ).alias(f"{target_prefix}_ratio_{lag_nominator}_{lag_denomonator}")
+            )
+
+        return df_features
+
     def _reduce_memory_usage(self, df_features):
         df_features = df_features.with_columns(pl.col(pl.Float64).cast(pl.Float32))
         return df_features
@@ -343,6 +460,7 @@ class FeaturesGenerator:
             self._add_forecast_weather_features,
             self._add_historical_weather_features,
             self._add_target_features,
+            self._add_target_norm_features,
             self._add_holidays_features,
             self._reduce_memory_usage,
             self._drop_columns,

@@ -1,0 +1,7 @@
+data: /kaggle/input
+data_raw: ${dir.data}/predict-energy-behavior-of-prosumers
+data_interim: null
+data_processed: null
+data_geo: ${dir.data}/enefit-pebop-geo-data
+data_stations: ${dir.data}/enefit-pebop-stations-data
+outputs: /kaggle/working
