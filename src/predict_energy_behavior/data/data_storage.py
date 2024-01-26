@@ -6,6 +6,7 @@ import pandas as pd
 
 from predict_energy_behavior.utils.common import format_county_name
 
+
 class DataStorage:
     root: str
 
@@ -59,7 +60,7 @@ class DataStorage:
         "direct_solar_radiation",
         "surface_solar_radiation_downwards",
         "snowfall",
-        "total_precipitation"
+        "total_precipitation",
     ]
 
     historical_weather_cols = [
@@ -81,7 +82,7 @@ class DataStorage:
         "latitude",
         "longitude",
     ]
-    
+
     historical_weather_raw_features = [
         "temperature",
         "dewpoint",
@@ -108,24 +109,40 @@ class DataStorage:
         "datetime",
     ]
 
-    def __init__(
-            self, 
-            path_data_raw: Path, 
-            path_data_geo: Path,
-            path_data_stations: Path,
+    def _fill_dst_nulls(self, df_target: pl.DataFrame) -> pl.DataFrame:
+        dfs = []
+        for _, df in df_target.group_by(
+            ["county", "is_business", "product_type", "is_consumption"],
+            maintain_order=True,
         ):
+            dfs.append(
+                df.with_columns(
+                    pl.col("target").fill_null(strategy="forward", limit=1)
+                )
+            )
+
+        return pl.concat(dfs)
+
+    def __init__(
+        self,
+        path_data_raw: Path,
+        path_data_geo: Path,
+        path_data_stations: Path,
+    ):
         self.root = str(path_data_raw)
 
-        self.df_data = pl.read_csv(
+        self.df_data = self._fill_dst_nulls(pl.read_csv(
             os.path.join(self.root, "train.csv"),
             columns=self.data_cols,
             try_parse_dates=True,
-        )
+        ))
+
         self.df_client = pl.read_csv(
             os.path.join(self.root, "client.csv"),
             columns=self.client_cols,
             try_parse_dates=True,
         )
+
         self.df_gas_prices = pl.read_csv(
             os.path.join(self.root, "gas_prices.csv"),
             columns=self.gas_prices_cols,
@@ -154,7 +171,7 @@ class DataStorage:
         # self.df_data = self.df_data.filter(
         #    pl.col("datetime") >= pd.to_datetime("2022-01-01")
         # )
-        self.df_target = self.df_data.select(self.target_cols)
+        self.df_target = self._fill_dst_nulls(self.df_data.select(self.target_cols))
 
         self.df_capitals = pl.read_csv(path_data_geo / "capitals.csv")
         self.df_county_boundaries = pl.read_csv(path_data_geo / "county_boundaries.csv")
@@ -172,7 +189,9 @@ class DataStorage:
             pl.col("county_name").map_dict(county_name_to_id).alias("county")
         ).drop("county_name")
 
-        self.df_stations = pl.read_parquet(path_data_stations / "stations_with_weights.parquet")
+        self.df_stations = pl.read_parquet(
+            path_data_stations / "stations_with_weights.parquet"
+        )
 
         self.schema_data = self.df_data.schema
         self.schema_client = self.df_client.schema
@@ -219,8 +238,10 @@ class DataStorage:
             df_new_historical_weather[self.historical_weather_cols],
             schema_overrides=self.schema_historical_weather,
         )
-        df_new_target = pl.from_pandas(
-            df_new_target[self.target_cols], schema_overrides=self.schema_target
+        df_new_target = self._fill_dst_nulls(
+            pl.from_pandas(
+                df_new_target[self.target_cols], schema_overrides=self.schema_target
+            )
         )
 
         self.df_client = pl.concat([self.df_client, df_new_client]).unique(

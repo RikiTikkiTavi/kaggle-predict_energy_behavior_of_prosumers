@@ -30,8 +30,8 @@ model_p:
       reg_alpha: 3.5
       reg_lambda: 1.5
       max_depth: 16
-      num_leaves: 500
-      min_child_samples: 162
+      num_leaves: 450
+      min_child_samples: 100
       objective: "regression_l1"
       device: "cpu"
       n_jobs: 24
@@ -49,10 +49,8 @@ model_p:
       "windspeed_10m_historical",
       "10_metre_u_wind_component_historical",
       "10_metre_v_wind_component_historical",
-      "sin(hour)",
-      "cos(hour)",
-      "sin(dayofyear)",
-      "cos(dayofyear)",
+      "hour",
+      "dayofyear",
       "product_type",
       "installed_capacity",
       "predictions_first_order",
@@ -64,16 +62,11 @@ model_c:
   features: [
     "predictions_production",
     "product_type",
-    "day",
     "weekday",
     "month",
-    "year",
-    "sin(dayofyear)",
-    "cos(dayofyear)",
-    "sin(hour)",
-    "cos(hour)",
+    "dayofyear",
+    "hour",
     "eic_count",
-    "installed_capacity",
     # Historical 0h
     "temperature_historical",
     "dewpoint_historical",
@@ -87,34 +80,6 @@ model_c:
     "direct_solar_radiation_historical",
     "10_metre_u_wind_component_historical",
     "10_metre_v_wind_component_historical",
-    # Historical h24
-    "temperature_historical_h24",
-    "dewpoint_historical_h24",
-    "rain_historical_h24",
-    "snowfall_historical_h24",
-    "cloudcover_total_historical_h24",
-    "cloudcover_low_historical_h24",
-    "cloudcover_mid_historical_h24",
-    "cloudcover_high_historical_h24",
-    "direct_solar_radiation_historical_h24",
-    "diffuse_radiation_historical_h24",
-    "windspeed_10m_historical_h24",
-    "10_metre_u_wind_component_historical_h24",
-    "10_metre_v_wind_component_historical_h24",
-    # Historical h48
-    "temperature_historical_h48",
-    "dewpoint_historical_h48",
-    "rain_historical_h48",
-    "snowfall_historical_h48",
-    "cloudcover_total_historical_h48",
-    "cloudcover_low_historical_h48",
-    "cloudcover_mid_historical_h48",
-    "cloudcover_high_historical_h48",
-    "direct_solar_radiation_historical_h48",
-    "diffuse_radiation_historical_h48",
-    "windspeed_10m_historical_h48",
-    "10_metre_u_wind_component_historical_h48",
-    "10_metre_v_wind_component_historical_h48",
     # Historical h168
     "temperature_historical_h168",
     "dewpoint_historical_h168",
@@ -130,37 +95,11 @@ model_c:
     "10_metre_u_wind_component_historical_h168",
     "10_metre_v_wind_component_historical_h168",
     # Target features
-    "target_per_eic_48h",
-    "target_per_eic_72h",
-    "target_per_eic_96h",
-    "target_per_eic_120h",
-    "target_per_eic_144h",
     "target_per_eic_168h",
-    "target_per_eic_192h",
-    "target_per_eic_216h",
-    "target_per_eic_240h",
-    "target_per_eic_264h",
-    "target_per_eic_288h",
-    "target_per_eic_312h",
-    "target_per_eic_336h",
-    "target_per_eic_all_type_sum_48h",
-    "target_per_eic_all_county_type_sum_48h",
-    "target_per_eic_all_type_sum_72h",
-    "target_per_eic_all_county_type_sum_72h",
     "target_per_eic_all_type_sum_168h",
     "target_per_eic_all_county_type_sum_168h",
-    "target_per_eic_all_type_sum_336h",
-    "target_per_eic_all_county_type_sum_336h",
     "target_per_eic_mean",
     "target_per_eic_std",
-    "target_per_eic_ratio_168_336",
-    "target_per_eic_ratio_48_216",
-    "target_per_eic_ratio_72_240",
-    "target_per_eic_ratio_48_72",
-    "target_per_eic_all_type_sum_ratio_48_72",
-    "target_per_eic_all_type_sum_ratio_168_336",
-    "target_per_eic_all_county_type_sum_ratio_48_72",
-    "target_per_eic_all_county_type_sum_ratio_168_336",
     "is_country_holiday"
   ]
   parameters:
@@ -172,7 +111,7 @@ model_c:
     reg_lambda: 1.5
     max_depth: 16
     num_leaves: 500
-    min_child_samples: 162
+    min_child_samples: 50
     objective: "regression_l1"
     device: "cpu"
     n_jobs: 24

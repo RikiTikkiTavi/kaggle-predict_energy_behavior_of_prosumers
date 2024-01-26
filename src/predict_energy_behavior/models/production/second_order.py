@@ -30,7 +30,11 @@ class SecondOrderModel(ProductionRegressionBase[Literal[1]]):
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         
         X = X.assign(**{
-            "predictions_first_order": X["predictions_first_order"] / X["installed_capacity"]
+            "predictions_first_order": np.where(
+                X["installed_capacity"] > 0,
+                X["predictions_first_order"] / X["installed_capacity"],
+                0.0
+            )
         })
 
         return self.model.predict(X[self.features]) * X["installed_capacity"]
@@ -38,8 +42,17 @@ class SecondOrderModel(ProductionRegressionBase[Literal[1]]):
     def fit(self, X: pd.DataFrame, y: np.ndarray) -> "SecondOrderModel":
         assert "predictions_first_order" in X.columns and "installed_capacity" in X.columns
         
-        X["predictions_first_order"] /= X["installed_capacity"]
-        y /= X["installed_capacity"]
+        X["predictions_first_order"] = np.where(
+            X["installed_capacity"] > 0,
+            X["predictions_first_order"] / X["installed_capacity"],
+            0.0
+        )
+
+        y = np.where(
+            X["installed_capacity"] > 0,
+            y / X["installed_capacity"],
+            y
+        )
         
         X_train = X[self.features]
         self.model.fit(X_train, y)

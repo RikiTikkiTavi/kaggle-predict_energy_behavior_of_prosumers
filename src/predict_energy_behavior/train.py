@@ -83,7 +83,8 @@ def main(cfg: config.ConfigExperiment):
 
             models[fold_i] = model
 
-            path_model = Path.cwd() / "model_joined"
+            path_model = Path.cwd() / f"model_joined-{fold_i}"
+            path_model.mkdir(exist_ok=True, parents=True)
             model.save(path_model)
 
             _logger.info("Validation on historical weather ...")

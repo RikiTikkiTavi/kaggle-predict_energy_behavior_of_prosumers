@@ -14,6 +14,43 @@ from global_land_mask import globe
 from datetime import timedelta
 
 
+def calculate_relative_humidity(T: pl.Expr, D: pl.Expr) -> pl.Expr:
+    """
+    Calculate the relative humidity based on temperature and dewpoint.
+    T: Temperature in Celsius
+    D: Dewpoint in Celsius
+    """
+    return 100 * (
+        ((17.625 * D) / (243.04 + D)).exp() / ((17.625 * T) / (243.04 + T)).exp()
+    )
+
+
+def wind_factor(WS: pl.Expr, threshold=2.0) -> pl.Expr:
+    """
+    Calculate the wind factor for fog formation.
+    WS: Wind Speed in m/s
+    threshold: Wind speed threshold for fog formation
+    """
+    # Wind factor reduces as wind speed increases. If WS is below the threshold, set the factor to 1.
+    return pl.when(WS < threshold).then(1.0).otherwise(1 / WS)
+
+
+def estimate_fog_intensity(T: pl.Expr, D: pl.Expr, WS: pl.Expr) -> pl.Expr:
+    """
+    Estimate the fog intensity based on temperature, dewpoint, and wind speed.
+    T: Temperature in Celsius
+    D: Dewpoint in Celsius
+    WS: Wind Speed in m/s
+    """
+    RH = calculate_relative_humidity(T, D)
+    WF = wind_factor(WS)
+
+    # Assuming fog intensity is higher with higher relative humidity and lower wind speeds
+    # This is a simple model and might need calibration with empirical data
+    fog_intensity = RH * WF / 100  # Normalize to a 0-100 scale
+
+    return fog_intensity
+
 class FeaturesGenerator:
     def __init__(self, data_storage: DataStorage, cfg: config.ConfigPrepareData):
         self.data_storage = data_storage
@@ -59,7 +96,11 @@ class FeaturesGenerator:
             ),
             on=["county", "is_business", "product_type", "date"],
             how="left",
+        ).with_columns(
+            pl.col("installed_capacity").fill_null(0.0),
+            pl.col("eic_count").fill_null(0.0),
         )
+
         return df_features
 
     def is_country_holiday(self, row):
@@ -116,12 +157,13 @@ class FeaturesGenerator:
                 pl.col("windspeed_10m")
                 * (pl.col("winddirection_10m") * 180 / np.pi).sin()
             ).alias("10_metre_v_wind_component"),
+            estimate_fog_intensity(T=pl.col("temperature"), D=pl.col("dewpoint"), WS=pl.col("windspeed_10m")).alias("fog")
         ).drop(columns=["winddirection_10m"])
 
         weather_columns = self.data_storage.historical_weather_raw_features.copy()
         weather_columns.remove("winddirection_10m")
         weather_columns.extend(
-            ["10_metre_u_wind_component", "10_metre_v_wind_component"]
+            ["10_metre_u_wind_component", "10_metre_v_wind_component", "fog"]
         )
 
         df_historical_weather = self._join_weather_with_counties(
@@ -144,8 +186,8 @@ class FeaturesGenerator:
 
         return df_features
 
-    def _snowfall_mwe_to_cm(self, s: pl.Expr, rho=334) -> pl.Expr:
-        return 1000 / rho * s * 100
+    def _snowfall_mwe_to_cm(self, s: pl.Expr, k=424.24) -> pl.Expr:
+        return s*k
 
     def _add_forecast_weather_features(self, df_features: pl.DataFrame):
         df_forecast_weather = self.data_storage.df_forecast_weather
@@ -155,14 +197,20 @@ class FeaturesGenerator:
         datetime_start = df_features["datetime"].min() - timedelta(max(lags))
 
         df_forecast_weather = (
-            df_forecast_weather.filter((pl.col("hours_ahead") >= 24))
-            .with_columns(pl.col("forecast_datetime").alias("datetime"))
-            .drop(["hours_ahead", "forecast_datetime"])
+            df_forecast_weather.filter((pl.col("hours_ahead") >= 23))
+            .with_columns(
+                (
+                    pl.col("origin_datetime") + pl.duration(hours=pl.col("hours_ahead"))
+                ).alias("datetime")
+            )
+            .drop(["hours_ahead", "forecast_datetime", "origin_datetime"])
             .with_columns(
                 pl.col("latitude").cast(pl.datatypes.Float32),
                 pl.col("longitude").cast(pl.datatypes.Float32),
-                (pl.col("total_precipitation") - pl.col("snowfall")).clip(0.0).alias("rain"),
-                (self._snowfall_mwe_to_cm(pl.col("snowfall"))),
+                (pl.col("total_precipitation") - pl.col("snowfall"))
+                .clip(0.0)
+                .alias("rain") * 1000, # rain in mm
+                self._snowfall_mwe_to_cm(pl.col("snowfall")),
                 (
                     (
                         pl.col("10_metre_v_wind_component") ** 2
@@ -170,12 +218,14 @@ class FeaturesGenerator:
                     )
                     ** (1 / 2)
                 ).alias("windspeed_10m"),
+            ).with_columns(
+                estimate_fog_intensity(T=pl.col("temperature"), D=pl.col("dewpoint"), WS=pl.col("windspeed_10m")).alias("fog")
             )
             .filter(pl.col("datetime") >= datetime_start)
         )
 
         weather_columns = self.data_storage.forecast_weather_raw_features.copy()
-        weather_columns.extend(["windspeed_10m", "rain"])
+        weather_columns.extend(["windspeed_10m", "rain", "fog"])
 
         df_forecast_weather = self._join_weather_with_counties(
             df_forecast_weather, weather_columns=weather_columns
@@ -292,21 +342,25 @@ class FeaturesGenerator:
         return df_features
 
     def _add_target_norm_features(self, df_features):
-        datetime_start = df_features["datetime"].min() - timedelta(hours=21*24)
-        
+        datetime_start = df_features["datetime"].min() - timedelta(hours=21 * 24)
+
         df_target = (
-            self.data_storage.df_target
-            .filter(pl.col("datetime") >= datetime_start)
-            .with_columns(
-                pl.col("datetime").cast(pl.Date).alias("date")
-            )
+            self.data_storage.df_target.filter(pl.col("datetime") >= datetime_start)
+            .with_columns(pl.col("datetime").cast(pl.Date).alias("date"))
             .join(
                 self.data_storage.df_client.with_columns(pl.col("date").cast(pl.Date)),
                 on=["county", "is_business", "product_type", "date"],
                 how="left",
             )
             .with_columns(
-                (pl.col("target") / pl.col("eic_count")).alias("target_per_eic")
+                pl.col("installed_capacity").fill_null(0.0),
+                pl.col("eic_count").fill_null(0.0),
+            )
+            .with_columns(
+                pl.when(pl.col("eic_count") > 0)
+                .then((pl.col("target") / pl.col("eic_count")))
+                .otherwise(0.0)
+                .alias("target_per_eic"),
             )
             .select(
                 "datetime",
@@ -423,7 +477,7 @@ class FeaturesGenerator:
         return df_features
 
     def _drop_columns(self, df_features):
-        df_features = df_features.drop("date", "hour", "dayofyear")
+        # df_features = df_features.drop("date", "hour", "dayofyear")
         return df_features
 
     def _to_pandas(self, df_features, y):

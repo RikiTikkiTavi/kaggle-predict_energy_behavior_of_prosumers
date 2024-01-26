@@ -27,6 +27,8 @@ def date_columns_to_datetime(df):
             df[col] = pd.to_datetime(df[col])
     return df
 
+def is_prediciton_needed(df_test):
+    return not all(df_test['currently_scored'] == False)
 
 @hydra.main(config_path="../../configs", config_name="inference", version_base="1.3")
 def main(cfg: config.ConfigInference):
@@ -60,10 +62,6 @@ def main(cfg: config.ConfigInference):
         df_sample_prediction,
     ) in iter_test:
         t0 = time.time()
-        
-        df_new_target["target"] = df_new_target["target"].fillna(0.0)
-        df_new_client["installed_capacity"] = df_new_client["installed_capacity"].fillna(1000.0)
-        df_new_client["eic_count"] = df_new_client["eic_count"].fillna(100)
 
         date_columns_to_datetime(df_new_electricity_prices)
         date_columns_to_datetime(df_new_forecast_weather)
@@ -81,7 +79,7 @@ def main(cfg: config.ConfigInference):
         )
 
         if not cfg.debug:
-            if not bool(df_test["currently_scored"].iloc[0]):
+            if not is_prediciton_needed(df_test):
                 df_sample_prediction["target"] = 0.0
                 env.predict(df_sample_prediction)
                 continue
@@ -89,27 +87,25 @@ def main(cfg: config.ConfigInference):
         t_read = time.time()
         _logger.info(f"Time to read: {t_read-t0}s")
 
-        # separately generate test features for both models
-
+        # generate test features
         df_test = ds.preprocess_test(df_test)
         df_test_features = feature_gen.generate_features(df_test)
-
         df_test_features = train.replace_historical_with_forecast(df_test_features)
-
+        
         t_process = time.time()
         _logger.info(f"Time to process: {t_process-t_read}s")
 
         preds = model.predict(df_test_features).clip(0)
         df_sample_prediction["target"] = preds
 
+
         if cfg.debug:
-            assert not np.isnan(preds).any()
+            assert not df_sample_prediction["target"].isna().any()
 
         t_predict = time.time()
         _logger.info(f"Time to predict: {t_predict-t_process}s")
 
         env.predict(df_sample_prediction)
-        gc.collect()
 
 
 if __name__ == "__main__":
