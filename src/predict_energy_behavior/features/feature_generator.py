@@ -51,6 +51,7 @@ def estimate_fog_intensity(T: pl.Expr, D: pl.Expr, WS: pl.Expr) -> pl.Expr:
 
     return fog_intensity
 
+
 class FeaturesGenerator:
     def __init__(self, data_storage: DataStorage, cfg: config.ConfigPrepareData):
         self.data_storage = data_storage
@@ -138,7 +139,23 @@ class FeaturesGenerator:
         )
 
     def _add_historical_weather_features(self, df_features: pl.DataFrame):
-        lags = [0, 1 * 24, 2 * 24, 7 * 24]
+        lags = [
+            0,
+            1 * 24,
+            2 * 24,
+            3 * 24,
+            4 * 24,
+            5 * 24,
+            6 * 24,
+            7 * 24,
+            8 * 24,
+            9 * 24,
+            10 * 24,
+            11 * 24,
+            12 * 24,
+            13 * 24,
+            14 * 24,
+        ]
 
         datetime_start = df_features["datetime"].min() - timedelta(max(lags))
 
@@ -157,14 +174,25 @@ class FeaturesGenerator:
                 pl.col("windspeed_10m")
                 * (pl.col("winddirection_10m") * 180 / np.pi).sin()
             ).alias("10_metre_v_wind_component"),
-            estimate_fog_intensity(T=pl.col("temperature"), D=pl.col("dewpoint"), WS=pl.col("windspeed_10m")).alias("fog"),
-            calculate_relative_humidity(T=pl.col("temperature"), D=pl.col("dewpoint")).alias("humidity")
+            estimate_fog_intensity(
+                T=pl.col("temperature"),
+                D=pl.col("dewpoint"),
+                WS=pl.col("windspeed_10m"),
+            ).alias("fog"),
+            calculate_relative_humidity(
+                T=pl.col("temperature"), D=pl.col("dewpoint")
+            ).alias("humidity"),
         ).drop(columns=["winddirection_10m"])
 
         weather_columns = self.data_storage.historical_weather_raw_features.copy()
         weather_columns.remove("winddirection_10m")
         weather_columns.extend(
-            ["10_metre_u_wind_component", "10_metre_v_wind_component", "fog", "humidity"]
+            [
+                "10_metre_u_wind_component",
+                "10_metre_v_wind_component",
+                "fog",
+                "humidity",
+            ]
         )
 
         df_historical_weather = self._join_weather_with_counties(
@@ -188,12 +216,28 @@ class FeaturesGenerator:
         return df_features
 
     def _snowfall_mwe_to_cm(self, s: pl.Expr, k=424.24) -> pl.Expr:
-        return s*k
+        return s * k
 
     def _add_forecast_weather_features(self, df_features: pl.DataFrame):
         df_forecast_weather = self.data_storage.df_forecast_weather
 
-        lags = [0, 7 * 24]
+        lags = [
+            0,
+            1 * 24,
+            2 * 24,
+            3 * 24,
+            4 * 24,
+            5 * 24,
+            6 * 24,
+            7 * 24,
+            8 * 24,
+            9 * 24,
+            10 * 24,
+            11 * 24,
+            12 * 24,
+            13 * 24,
+            14 * 24,
+        ]
 
         datetime_start = df_features["datetime"].min() - timedelta(max(lags))
 
@@ -210,7 +254,8 @@ class FeaturesGenerator:
                 pl.col("longitude").cast(pl.datatypes.Float32),
                 (pl.col("total_precipitation") - pl.col("snowfall"))
                 .clip(0.0)
-                .alias("rain") * 1000, # rain in mm
+                .alias("rain")
+                * 1000,  # rain in mm
                 self._snowfall_mwe_to_cm(pl.col("snowfall")),
                 (
                     (
@@ -219,9 +264,16 @@ class FeaturesGenerator:
                     )
                     ** (1 / 2)
                 ).alias("windspeed_10m"),
-            ).with_columns(
-                estimate_fog_intensity(T=pl.col("temperature"), D=pl.col("dewpoint"), WS=pl.col("windspeed_10m")).alias("fog"),
-                calculate_relative_humidity(T=pl.col("temperature"), D=pl.col("dewpoint")).alias("humidity")
+            )
+            .with_columns(
+                estimate_fog_intensity(
+                    T=pl.col("temperature"),
+                    D=pl.col("dewpoint"),
+                    WS=pl.col("windspeed_10m"),
+                ).alias("fog"),
+                calculate_relative_humidity(
+                    T=pl.col("temperature"), D=pl.col("dewpoint")
+                ).alias("humidity"),
             )
             .filter(pl.col("datetime") >= datetime_start)
         )
@@ -237,7 +289,7 @@ class FeaturesGenerator:
             {c: f"{c}_forecast" for c in weather_columns}
         )
 
-        for hours_lag in [0, 7 * 24]:
+        for hours_lag in lags:
             df_features = df_features.join(
                 df_forecast_weather.with_columns(
                     pl.col("datetime") + pl.duration(hours=hours_lag)
@@ -474,6 +526,80 @@ class FeaturesGenerator:
 
         return df_features
 
+    def _add_target_norm_diff_features(self, df_features: pl.DataFrame) -> pl.DataFrame:
+        diffs = [48, 168]
+        lags = [d * 24 for d in (2, 3, 4, 5, 6, 7)]
+
+        df_features = df_features.with_columns(
+            *[
+                (
+                    pl.col(f"target_per_eic_{lag}h")
+                    - pl.col(f"target_per_eic_{lag+diff}h")
+                ).alias(f"target_per_eic_diff_{diff}h_lag{lag}h")
+                for lag in lags
+                for diff in diffs
+            ]
+        )
+
+        for diff in diffs:
+            cols_for_stats = [f"target_per_eic_diff_{diff}h_lag{lag}h" for lag in lags]
+            df_features = df_features.with_columns(
+                df_features.select(cols_for_stats)
+                .transpose()
+                .median()
+                .transpose()
+                .to_series()
+                .alias(f"target_per_eic_diff_{diff}h_median"),
+                df_features.select(cols_for_stats)
+                .transpose()
+                .quantile(0.25)
+                .transpose()
+                .to_series()
+                .alias(f"target_per_eic_diff_{diff}h_q25"),
+                df_features.select(cols_for_stats)
+                .transpose()
+                .quantile(0.75)
+                .transpose()
+                .to_series()
+                .alias(f"target_per_eic_diff_{diff}h_q75"),
+            )
+
+        return df_features
+
+    def _add_weather_diff_features(self, df_features: pl.DataFrame) -> pl.DataFrame:
+        weather_features_both = [
+            "temperature",
+            "dewpoint",
+            "rain",
+            "snowfall",
+            "cloudcover_total",
+            "cloudcover_low",
+            "cloudcover_mid",
+            "cloudcover_high",
+            "windspeed_10m",
+            "10_metre_u_wind_component",
+            "10_metre_v_wind_component",
+            "humidity",
+        ]
+        diffs = [48, 168]
+        suffixes = ["historical", "forecast"]
+        for diff in diffs:
+            df_features = df_features.with_columns(
+                *[
+                    (
+                        pl.col(f"{feature}_{suffix}")
+                        - pl.col(f"{feature}_historical_h{diff}")
+                    ).alias(f"diff_{diff}h_{feature}_{suffix}")
+                    for feature in weather_features_both
+                    for suffix in suffixes
+                ],
+                (
+                    pl.col("surface_solar_radiation_downwards_forecast")
+                    - pl.col(f"surface_solar_radiation_downwards_forecast_h{diff}")
+                ).alias(f"diff_{diff}h_surface_solar_radiation_downwards_forecast"),
+            )
+        return df_features
+
     def _reduce_memory_usage(self, df_features):
         df_features = df_features.with_columns(pl.col(pl.Float64).cast(pl.Float32))
         return df_features
@@ -522,6 +648,8 @@ class FeaturesGenerator:
             self._add_target_features,
             self._add_target_norm_features,
             self._add_holidays_features,
+            self._add_target_norm_diff_features,
+            self._add_weather_diff_features,
             self._reduce_memory_usage,
             self._drop_columns,
         ]:

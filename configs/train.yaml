@@ -13,9 +13,9 @@ defaults:
   - _self_
   - dir: alpha
   - cv: temporal_kfold
-  - model: solar_out_and_lgbms
+  - model: solar_out_and_diff-lgbms
 
 phase: train
 mlflow_tracking_uri: "http://172.26.122.53:5000/"
 exp_name: eb/tune
-run_name: cst+lgbms-tempkf-frs-fog-hum-isb
+run_name: cst+diff-lgbms
