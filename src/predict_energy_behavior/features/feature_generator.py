@@ -157,13 +157,14 @@ class FeaturesGenerator:
                 pl.col("windspeed_10m")
                 * (pl.col("winddirection_10m") * 180 / np.pi).sin()
             ).alias("10_metre_v_wind_component"),
-            estimate_fog_intensity(T=pl.col("temperature"), D=pl.col("dewpoint"), WS=pl.col("windspeed_10m")).alias("fog")
+            estimate_fog_intensity(T=pl.col("temperature"), D=pl.col("dewpoint"), WS=pl.col("windspeed_10m")).alias("fog"),
+            calculate_relative_humidity(T=pl.col("temperature"), D=pl.col("dewpoint")).alias("humidity")
         ).drop(columns=["winddirection_10m"])
 
         weather_columns = self.data_storage.historical_weather_raw_features.copy()
         weather_columns.remove("winddirection_10m")
         weather_columns.extend(
-            ["10_metre_u_wind_component", "10_metre_v_wind_component", "fog"]
+            ["10_metre_u_wind_component", "10_metre_v_wind_component", "fog", "humidity"]
         )
 
         df_historical_weather = self._join_weather_with_counties(
@@ -219,13 +220,14 @@ class FeaturesGenerator:
                     ** (1 / 2)
                 ).alias("windspeed_10m"),
             ).with_columns(
-                estimate_fog_intensity(T=pl.col("temperature"), D=pl.col("dewpoint"), WS=pl.col("windspeed_10m")).alias("fog")
+                estimate_fog_intensity(T=pl.col("temperature"), D=pl.col("dewpoint"), WS=pl.col("windspeed_10m")).alias("fog"),
+                calculate_relative_humidity(T=pl.col("temperature"), D=pl.col("dewpoint")).alias("humidity")
             )
             .filter(pl.col("datetime") >= datetime_start)
         )
 
         weather_columns = self.data_storage.forecast_weather_raw_features.copy()
-        weather_columns.extend(["windspeed_10m", "rain", "fog"])
+        weather_columns.extend(["windspeed_10m", "rain", "fog", "humidity"])
 
         df_forecast_weather = self._join_weather_with_counties(
             df_forecast_weather, weather_columns=weather_columns

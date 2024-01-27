@@ -20,7 +20,7 @@ class TemporalKFold:
             df_train = X.loc[X["datetime"] <= date]
             df_val = X.loc[X["datetime"] > date]
             fold_name = f"f-{date.year}-{date.month}-{date.day}"
-            yield df_train, df_val
+            yield fold_name, df_train, df_val
 
 
 class MonthlyKFold:

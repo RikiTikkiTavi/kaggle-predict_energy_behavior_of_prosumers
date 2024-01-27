@@ -7,6 +7,9 @@ from predict_energy_behavior.models.consumption.base_model import (
 )
 import lightgbm as lgb
 
+import numpy as np
+import pandas as pd
+
 class LGBMSecondOrderModel(ConsumptionRegressionBase):
     def __init__(
         self,
@@ -47,3 +50,43 @@ class LGBMSecondOrderModel(ConsumptionRegressionBase):
             if hasattr(estimator, "booster_"):
                 model_path = path / f"{name_prefix}{name}.txt"
                 estimator.booster_.save_model(model_path)
+
+
+class LGBMOnDiff(LGBMSecondOrderModel):
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        X = X.assign(
+            **{
+                "predictions_production": np.where(
+                    X["installed_capacity"] > 0,
+                    X["predictions_production"] / X["installed_capacity"],
+                    X["predictions_production"],
+                )
+            }
+        )
+
+        return self.model.predict(X[self.features]) * X["eic_count"]
+
+    def fit(self, X: pd.DataFrame, y: np.ndarray) -> "ConsumptionRegressionBase":
+        assert (
+            "predictions_production" in X.columns and "installed_capacity" in X.columns
+        )
+        assert "eic_count" in X.columns
+
+        X = X.assign(
+            **{
+                "predictions_production": np.where(
+                    X["installed_capacity"] > 0,
+                    X["predictions_production"] / X["installed_capacity"],
+                    X["predictions_production"],
+                )
+            }
+        )
+
+        y = np.where(X["eic_count"] > 0, y / X["eic_count"], y)
+
+        y -= X["target_per_eic_48h"]
+
+        X_train = X[self.features]
+        self.model.fit(X_train, y)
+
+        return self

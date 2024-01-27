@@ -52,8 +52,10 @@ model_p:
       "hour",
       "dayofyear",
       "product_type",
+      "is_business",
       "installed_capacity",
       "predictions_first_order",
+      "fog_historical"
     ]
 model_c:
   _target_: predict_energy_behavior.models.consumption.lgbm_regression.LGBMSecondOrderModel
@@ -62,6 +64,7 @@ model_c:
   features: [
     "predictions_production",
     "product_type",
+    "is_business",
     "weekday",
     "month",
     "dayofyear",
@@ -80,6 +83,7 @@ model_c:
     "direct_solar_radiation_historical",
     "10_metre_u_wind_component_historical",
     "10_metre_v_wind_component_historical",
+    "humidity_historical",
     # Historical h168
     "temperature_historical_h168",
     "dewpoint_historical_h168",
@@ -95,7 +99,9 @@ model_c:
     "10_metre_u_wind_component_historical_h168",
     "10_metre_v_wind_component_historical_h168",
     # Target features
+    "target_per_eic_144h",
     "target_per_eic_168h",
+    "target_per_eic_192h",
     "target_per_eic_all_type_sum_168h",
     "target_per_eic_all_county_type_sum_168h",
     "target_per_eic_mean",
@@ -103,7 +109,7 @@ model_c:
     "is_country_holiday"
   ]
   parameters:
-    n_estimators: 500
+    n_estimators: 2000
     learning_rate: 0.06
     colsample_bytree: 0.9
     colsample_bynode: 0.6
@@ -113,6 +119,6 @@ model_c:
     num_leaves: 500
     min_child_samples: 50
     objective: "regression_l1"
-    device: "cpu"
-    n_jobs: 24
+    device: "cuda"
+    #n_jobs: 24
     verbosity: 0
