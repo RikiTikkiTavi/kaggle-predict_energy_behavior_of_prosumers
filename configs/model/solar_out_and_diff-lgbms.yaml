@@ -20,7 +20,7 @@ model_p:
   second_order_model:
     _target_: predict_energy_behavior.models.production.second_order.LGBMSecondOrderModel
     n_models: 4
-    n_jobs: 2
+    n_jobs: 1
     n_gpus: 8
     parameters:
       n_estimators: 500
@@ -53,7 +53,7 @@ model_p:
       "dayofyear",
       "product_type",
       "is_business",
-      "installed_capacity",
+      # "installed_capacity",
       "predictions_first_order",
       "fog_historical"
     ]
@@ -66,7 +66,7 @@ model_c:
       diff_hours: 48
       n_models: 2
       n_gpus: 2
-      n_jobs: 2
+      n_jobs: 1
       features: [
         # "predictions_production",
         "product_type",
@@ -75,7 +75,7 @@ model_c:
         "month",
         "dayofyear",
         "hour",
-        "eic_count",
+        # "eic_count",
         "is_country_holiday",
         # Historical diff 0h
         "diff_48h_temperature_historical",
@@ -118,7 +118,7 @@ model_c:
       diff_hours: 168
       n_models: 2
       n_gpus: 2
-      n_jobs: 2
+      n_jobs: 1
       features: [
         # "predictions_production",
         "product_type",
@@ -127,7 +127,7 @@ model_c:
         "month",
         "dayofyear",
         "hour",
-        "eic_count",
+        # "eic_count",
         "is_country_holiday",
         # Historical diff 0h
         "diff_168h_temperature_historical",

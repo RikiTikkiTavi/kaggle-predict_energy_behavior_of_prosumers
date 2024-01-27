@@ -17,6 +17,6 @@ phase: test
 
 model:
   _target_: predict_energy_behavior.models.joined_model.JoinedModel.load
-  path: ${dir.outputs}/train/w-corrected-feats/2024-01-25_01-09-06/run_name=w-corrected-feats/model_joined
+  path: /beegfs/ws/0/s4610340-energy_behavior/yahor/kaggle-predict_energy_behavior_of_prosumers/outputs/train/cst+diff-lgbms-submit/model_joined-f-2023-1
 
 debug: True

@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 from pathlib import Path
 import polars as pl
@@ -162,7 +163,11 @@ class DataStorage:
             os.path.join(self.root, "historical_weather.csv"),
             columns=self.historical_weather_cols,
             try_parse_dates=True,
+        ).filter(
+            (pl.col("datetime") < datetime(year=2023, month=5, day=30, hour=11)) |
+            (pl.col("datetime") > datetime(year=2023, month=5, day=31, hour=23))
         )
+
         self.df_weather_station_to_county_mapping = pl.read_csv(
             os.path.join(self.root, "weather_station_to_county_mapping.csv"),
             columns=self.location_cols,

@@ -126,7 +126,7 @@ class LGBMOnMultiDiff:
     def load(cls, path: Path, name_prefix="consumption_") -> "LGBMOnMultiDiff":
         m = joblib.load(path / f"{name_prefix}model_obj.pickle")
         for i, m_diff in enumerate(m.models):
-            m.models[i] = m_diff.load(path, name_prefix=f"d_{m.diff_hours}_")
+            m.models[i] = m_diff.load(path, name_prefix=f"d_{m_diff.diff_hours}_")
         return m
 
     def save(self, path: Path, name_prefix="consumption_"):
