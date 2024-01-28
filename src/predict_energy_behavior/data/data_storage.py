@@ -124,6 +124,25 @@ class DataStorage:
 
         return pl.concat(dfs)
 
+
+    def _fill_nulls_historical(self, df: pl.DataFrame) -> pl.DataFrame:
+        df_prev_day = df.filter(
+            (pl.col("datetime") >= datetime(year=2023, month=5, day=28, hour=11)) &
+            (pl.col("datetime") <= datetime(year=2023, month=5, day=29, hour=23))
+        ).with_columns(
+            pl.col("datetime") + pl.duration(hours=48)
+        )
+        df = df.filter(
+            (pl.col("datetime") < datetime(year=2023, month=5, day=30, hour=11))
+        )
+
+        return pl.concat([
+            df,
+            df_prev_day
+        ])
+
+
+
     def __init__(
         self,
         path_data_raw: Path,
@@ -159,14 +178,11 @@ class DataStorage:
             columns=self.forecast_weather_cols,
             try_parse_dates=True,
         )
-        self.df_historical_weather = pl.read_csv(
+        self.df_historical_weather = self._fill_nulls_historical(pl.read_csv(
             os.path.join(self.root, "historical_weather.csv"),
             columns=self.historical_weather_cols,
             try_parse_dates=True,
-        ).filter(
-            (pl.col("datetime") < datetime(year=2023, month=5, day=30, hour=11)) |
-            (pl.col("datetime") > datetime(year=2023, month=5, day=31, hour=23))
-        )
+        ))
 
         self.df_weather_station_to_county_mapping = pl.read_csv(
             os.path.join(self.root, "weather_station_to_county_mapping.csv"),

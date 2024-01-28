@@ -51,7 +51,7 @@ def main(cfg: config.ConfigInference):
         env = enefit.make_env()
         iter_test = env.iter_test()
 
-    for (
+    for i, (
         df_test,
         df_new_target,
         df_new_client,
@@ -60,7 +60,7 @@ def main(cfg: config.ConfigInference):
         df_new_electricity_prices,
         df_new_gas_prices,
         df_sample_prediction,
-    ) in iter_test:
+    ) in enumerate(iter_test):
         t0 = time.time()
         
         date_columns_to_datetime(df_new_electricity_prices)
@@ -87,22 +87,17 @@ def main(cfg: config.ConfigInference):
         t_read = time.time()
         _logger.info(f"Time to read: {t_read-t0}s")
 
-        try:
-            # generate test features
-            df_test = ds.preprocess_test(df_test)
-            df_test_features = feature_gen.generate_features(df_test)
-            df_test_features = train.replace_historical_with_forecast(df_test_features)
-        except Exception as e:
-            df_sample_prediction["target"] = 33_333_333
-            print(e)
-            env.predict(df_sample_prediction)
-            continue
+        # generate test features
+        df_test = ds.preprocess_test(df_test)
+        df_test_features = feature_gen.generate_features(df_test)
+        df_test_features = train.replace_historical_with_forecast(df_test_features)
         
         t_process = time.time()
         _logger.info(f"Time to process: {t_process-t_read}s")
 
         preds = model.predict(df_test_features).clip(0)
         df_sample_prediction["target"] = preds
+        #df_sample_prediction["target"] = df_sample_prediction["target"].fillna(0.0)
 
         try:
             assert not df_sample_prediction["target"].isna().any()
