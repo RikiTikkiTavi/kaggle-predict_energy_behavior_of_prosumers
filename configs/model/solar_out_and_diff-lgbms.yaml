@@ -29,9 +29,9 @@ model_p:
       colsample_bynode: 0.6
       reg_alpha: 3.5
       reg_lambda: 1.5
-      max_depth: 16
-      num_leaves: 450
-      min_child_samples: 100
+      max_depth: 12
+      num_leaves: 400
+      min_child_samples: 50
       objective: "regression_l1"
       device: "cpu"
       n_jobs: 12
@@ -158,7 +158,7 @@ model_c:
         colsample_bynode: 0.6
         reg_alpha: 3.5
         reg_lambda: 1.5
-        max_depth: 16
+        max_depth: 14
         num_leaves: 500
         min_child_samples: 50
         objective: "regression_l1"

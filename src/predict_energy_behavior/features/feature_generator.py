@@ -155,9 +155,10 @@ class FeaturesGenerator:
             12 * 24,
             13 * 24,
             14 * 24,
+            15 * 24
         ]
 
-        datetime_start = df_features["datetime"].min() - timedelta(max(lags))
+        datetime_start = df_features["datetime"].min() - timedelta(hours=max(lags))
 
         df_historical_weather = self.data_storage.df_historical_weather.filter(
             pl.col("datetime") >= datetime_start
@@ -237,6 +238,7 @@ class FeaturesGenerator:
             12 * 24,
             13 * 24,
             14 * 24,
+            15 * 24
         ]
 
         datetime_start = df_features["datetime"].min() - timedelta(max(lags))
@@ -413,7 +415,7 @@ class FeaturesGenerator:
             .with_columns(
                 pl.when(pl.col("eic_count") > 0)
                 .then((pl.col("target") / pl.col("eic_count")))
-                .otherwise(0.0)
+                .otherwise(pl.col("target"))
                 .alias("target_per_eic"),
             )
             .select(
@@ -452,6 +454,7 @@ class FeaturesGenerator:
             12 * 24,
             13 * 24,
             14 * 24,
+            15 * 24,
         ]:
             df_features = df_features.join(
                 df_target.with_columns(

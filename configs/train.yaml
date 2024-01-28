@@ -18,4 +18,4 @@ defaults:
 phase: train
 mlflow_tracking_uri: "http://172.26.122.53:5000/"
 exp_name: eb/tune
-run_name: cst+diff-lgbms-wo-extensive
+run_name: cst+diff-lgbms-wo-extensive-reduce-compl

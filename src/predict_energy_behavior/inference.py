@@ -63,26 +63,20 @@ def main(cfg: config.ConfigInference):
     ) in iter_test:
         t0 = time.time()
         
-        try:
-            date_columns_to_datetime(df_new_electricity_prices)
-            date_columns_to_datetime(df_new_forecast_weather)
-            date_columns_to_datetime(df_new_historical_weather)
-            date_columns_to_datetime(df_new_target)
-            date_columns_to_datetime(df_test)
+        date_columns_to_datetime(df_new_electricity_prices)
+        date_columns_to_datetime(df_new_forecast_weather)
+        date_columns_to_datetime(df_new_historical_weather)
+        date_columns_to_datetime(df_new_target)
+        date_columns_to_datetime(df_test)
 
-            ds.update_with_new_data(
-                df_new_client=df_new_client,
-                df_new_gas_prices=df_new_gas_prices,
-                df_new_electricity_prices=df_new_electricity_prices,
-                df_new_forecast_weather=df_new_forecast_weather,
-                df_new_historical_weather=df_new_historical_weather,
-                df_new_target=df_new_target,
-            )
-        except Exception as e:
-            df_sample_prediction["target"] = 10_000_000
-            print(e)
-            env.predict(df_sample_prediction)
-            continue
+        ds.update_with_new_data(
+            df_new_client=df_new_client,
+            df_new_gas_prices=df_new_gas_prices,
+            df_new_electricity_prices=df_new_electricity_prices,
+            df_new_forecast_weather=df_new_forecast_weather,
+            df_new_historical_weather=df_new_historical_weather,
+            df_new_target=df_new_target,
+        )
 
         if not cfg.debug:
             if not is_prediciton_needed(df_test):
@@ -99,7 +93,7 @@ def main(cfg: config.ConfigInference):
             df_test_features = feature_gen.generate_features(df_test)
             df_test_features = train.replace_historical_with_forecast(df_test_features)
         except Exception as e:
-            df_sample_prediction["target"] = 30_000_000
+            df_sample_prediction["target"] = 33_333_333
             print(e)
             env.predict(df_sample_prediction)
             continue
@@ -107,19 +101,13 @@ def main(cfg: config.ConfigInference):
         t_process = time.time()
         _logger.info(f"Time to process: {t_process-t_read}s")
 
-        try:
-            preds = model.predict(df_test_features).clip(0)
-            df_sample_prediction["target"] = preds
-        except Exception as e:
-            df_sample_prediction["target"] = 50_000_000
-            print(e)
-            env.predict(df_sample_prediction)
-            continue
+        preds = model.predict(df_test_features).clip(0)
+        df_sample_prediction["target"] = preds
 
         try:
             assert not df_sample_prediction["target"].isna().any()
         except Exception as e:
-            df_sample_prediction["target"] = 70_000_000
+            df_sample_prediction["target"] = 44_444_444
             print(e)
             env.predict(df_sample_prediction)
             continue
@@ -127,7 +115,7 @@ def main(cfg: config.ConfigInference):
         try:
             assert not np.isinf(preds).any()
         except Exception as e:
-            df_sample_prediction["target"] = 90_000_000
+            df_sample_prediction["target"] = 99_999_999
             print(e)
             env.predict(df_sample_prediction)
             continue
