@@ -1,8 +1,9 @@
 _target_: predict_energy_behavior.models.joined_model.JoinedModel
 _recursive_: True
 model_p:
-  _target_: predict_energy_behavior.models.production.two_orders_regression.TwoOrdersRegression
+  _target_: predict_energy_behavior.models.production.two_orders_regression.AvgTwoOrdersRegression
   _recursive_: True
+  weights: [0.3, 0.7]
   first_order_model:
     _target_: predict_energy_behavior.models.production.solar_output_regression.GroupedSolarOutputRegression
     group_columns:
@@ -16,14 +17,13 @@ model_p:
       rain: "rain_historical"
       windspeed_10m: "windspeed_10m_historical"
       installed_capacity: "installed_capacity"
-      
   second_order_model:
     _target_: predict_energy_behavior.models.production.second_order.LGBMSecondOrderModel
     n_models: 4
     n_jobs: 1
     n_gpus: 8
     parameters:
-      n_estimators: 500
+      n_estimators: 1000
       learning_rate: 0.06
       colsample_bytree: 0.9
       colsample_bynode: 0.6
