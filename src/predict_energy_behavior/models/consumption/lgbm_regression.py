@@ -67,33 +67,34 @@ class LGBMOnDiff(LGBMSecondOrderModel):
         super().__init__(features, n_models, parameters, n_jobs, n_gpus)
     
     def predict(self, X: pd.DataFrame) -> np.ndarray:
-        X = X.assign(
-            **{
-                "predictions_production": np.where(
-                    X["installed_capacity"] > 0,
-                    X["predictions_production"] / X["installed_capacity"],
-                    X["predictions_production"],
-                )
-            }
-        )
+        if "predictions_production" in self.features:
+            X = X.assign(
+                **{
+                    "predictions_production": np.where(
+                        X["installed_capacity"] > 0,
+                        X["predictions_production"] / X["installed_capacity"],
+                        X["predictions_production"],
+                    )
+                }
+            )
         predicted_diff = self.model.predict(X[self.features])
         return (predicted_diff + X[f"target_per_eic_{self.diff_hours}h"]) * X["eic_count"]
 
     def fit(self, X: pd.DataFrame, y: np.ndarray) -> "ConsumptionRegressionBase":
         assert (
-            "predictions_production" in X.columns and "installed_capacity" in X.columns
+            "eic_count" in X.columns and "installed_capacity" in X.columns
         )
-        assert "eic_count" in X.columns
-
-        X = X.assign(
-            **{
-                "predictions_production": np.where(
-                    X["installed_capacity"] > 0,
-                    X["predictions_production"] / X["installed_capacity"],
-                    X["predictions_production"],
-                )
-            }
-        )
+        
+        if "predictions_production" in self.features:
+            X = X.assign(
+                **{
+                    "predictions_production": np.where(
+                        X["installed_capacity"] > 0,
+                        X["predictions_production"] / X["installed_capacity"],
+                        X["predictions_production"],
+                    )
+                }
+            )
         y = np.where(X["eic_count"] > 0, y / X["eic_count"], y)
         y -= X[f"target_per_eic_{self.diff_hours}h"]
 

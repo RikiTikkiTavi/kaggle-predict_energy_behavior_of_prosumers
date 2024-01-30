@@ -43,11 +43,17 @@ class JoinedModel(RegressionBase[Literal[2]]):
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         X_p = select_consumption(X, False)
-        preds_p = pd.Series(self._model_p.predict(X_p), index=X_p.index)
+        if len(X_p) > 0:
+            preds_p = pd.Series(self._model_p.predict(X_p), index=X_p.index)
+        else:
+            preds_p = pd.Series([])
 
         X_c = select_consumption(X, True)
-        X_c = X_c.assign(**{"predictions_production": preds_p})
-        preds_c = pd.Series(self._model_c.predict(X_c), index=X_c.index)
+        if len(X_c) > 0:
+            # X_c = X_c.assign(**{"predictions_production": preds_p})
+            preds_c = pd.Series(self._model_c.predict(X_c), index=X_c.index)
+        else:
+            preds_c = pd.Series([])
 
         return pd.concat([preds_p, preds_c]).loc[X.index].to_numpy()
 

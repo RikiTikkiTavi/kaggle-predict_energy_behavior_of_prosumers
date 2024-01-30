@@ -3,7 +3,7 @@ _recursive_: True
 model_p:
   _target_: predict_energy_behavior.models.production.two_orders_regression.AvgTwoOrdersRegression
   _recursive_: True
-  weights: [0.3, 0.7]
+  weights: [0.2, 0.8]
   first_order_model:
     _target_: predict_energy_behavior.models.production.solar_output_regression.GroupedSolarOutputRegression
     group_columns:
@@ -20,20 +20,20 @@ model_p:
   second_order_model:
     _target_: predict_energy_behavior.models.production.second_order.LGBMSecondOrderModel
     n_models: 4
-    n_jobs: 1
-    n_gpus: 8
+    n_jobs: 4
+    n_gpus: 4
     parameters:
-      n_estimators: 1000
+      n_estimators: 500
       learning_rate: 0.06
       colsample_bytree: 0.9
       colsample_bynode: 0.6
       reg_alpha: 3.5
       reg_lambda: 1.5
       max_depth: 16
-      num_leaves: 400
+      num_leaves: 500
       min_child_samples: 50
       objective: "regression_l1"
-      device: "cpu"
+      device: "cuda"
       n_jobs: 12
       verbosity: 0
     features: [
@@ -49,13 +49,29 @@ model_p:
       "windspeed_10m_historical",
       "10_metre_u_wind_component_historical",
       "10_metre_v_wind_component_historical",
+      "fog_historical",
+      # Historical diff 0h
+      "diff_48h_temperature_historical",
+      "diff_48h_dewpoint_historical",
+      "diff_48h_rain_historical",
+      "diff_48h_snowfall_historical",
+      "diff_48h_cloudcover_total_historical",
+      "diff_48h_cloudcover_low_historical",
+      "diff_48h_cloudcover_mid_historical",
+      "diff_48h_cloudcover_high_historical",
+      "diff_48h_windspeed_10m_historical",
+      "diff_48h_surface_solar_radiation_downwards_forecast",
+      "diff_48h_10_metre_u_wind_component_historical",
+      "diff_48h_10_metre_v_wind_component_historical",
+      "diff_48h_fog_historical",
+      # General
       "hour",
       "dayofyear",
       "product_type",
       "is_business",
-      "installed_capacity",
-      # "predictions_first_order",
-      "fog_historical"
+      # Target
+      "target_per_capacity_48h",
+      "target_per_capacity_all_type_sum_48h",
     ]
 model_c:
   _target_: predict_energy_behavior.models.consumption.lgbm_regression.LGBMOnMultiDiff
@@ -66,7 +82,7 @@ model_c:
       diff_hours: 48
       n_models: 2
       n_gpus: 2
-      n_jobs: 1
+      n_jobs: 2
       features: [
         # "predictions_production",
         "product_type",
@@ -111,14 +127,14 @@ model_c:
         num_leaves: 500
         min_child_samples: 50
         objective: "regression_l1"
-        device: "cpu"
+        device: "cuda"
         n_jobs: 12
         verbosity: 0
     - _target_: predict_energy_behavior.models.consumption.lgbm_regression.LGBMOnDiff
       diff_hours: 168
       n_models: 2
       n_gpus: 2
-      n_jobs: 1
+      n_jobs: 2
       features: [
         # "predictions_production",
         "product_type",
@@ -162,6 +178,6 @@ model_c:
         num_leaves: 500
         min_child_samples: 50
         objective: "regression_l1"
-        device: "cpu"
+        device: "cuda"
         n_jobs: 12
         verbosity: 0

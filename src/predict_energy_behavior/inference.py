@@ -97,7 +97,7 @@ def main(cfg: config.ConfigInference):
 
         preds = model.predict(df_test_features).clip(0)
         df_sample_prediction["target"] = preds
-        #df_sample_prediction["target"] = df_sample_prediction["target"].fillna(0.0)
+        df_sample_prediction["target"] = df_sample_prediction["target"].fillna(0.0)
 
         try:
             assert not df_sample_prediction["target"].isna().any()

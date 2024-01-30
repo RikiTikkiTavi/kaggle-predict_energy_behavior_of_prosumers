@@ -11,33 +11,33 @@ class ConsumptionRegressionBase(abc.ABC):
         self.model = model
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
-        X = X.assign(
-            **{
-                "predictions_production": np.where(
-                    X["installed_capacity"] > 0,
-                    X["predictions_production"] / X["installed_capacity"],
-                    X["predictions_production"],
-                )
-            }
-        )
+        if "predictions_production" in self.features:
+            X = X.assign(
+                **{
+                    "predictions_production": np.where(
+                        X["installed_capacity"] > 0,
+                        X["predictions_production"] / X["installed_capacity"],
+                        X["predictions_production"],
+                    )
+                }
+            )
 
         return self.model.predict(X[self.features]) * X["eic_count"]
 
     def fit(self, X: pd.DataFrame, y: np.ndarray) -> "ConsumptionRegressionBase":
         assert (
-            "predictions_production" in X.columns and "installed_capacity" in X.columns
+            "installed_capacity" in X.columns and  "eic_count" in X.columns
         )
-        assert "eic_count" in X.columns
-
-        X = X.assign(
-            **{
-                "predictions_production": np.where(
-                    X["installed_capacity"] > 0,
-                    X["predictions_production"] / X["installed_capacity"],
-                    X["predictions_production"],
-                )
-            }
-        )
+        if "predictions_production" in self.features:
+            X = X.assign(
+                **{
+                    "predictions_production": np.where(
+                        X["installed_capacity"] > 0,
+                        X["predictions_production"] / X["installed_capacity"],
+                        X["predictions_production"],
+                    )
+                }
+            )
 
         y  = np.where(
             X["eic_count"]>0,

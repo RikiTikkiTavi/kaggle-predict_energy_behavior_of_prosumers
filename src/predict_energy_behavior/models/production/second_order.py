@@ -37,7 +37,7 @@ class SecondOrderModel(ProductionRegressionBase[Literal[1]]):
             )
         })
 
-        return self.model.predict(X[self.features]) * X["installed_capacity"]
+        return self.model.predict(X[self.features]).clip(0.0) * X["installed_capacity"]
 
     def fit(self, X: pd.DataFrame, y: np.ndarray) -> "SecondOrderModel":
         assert "predictions_first_order" in X.columns and "installed_capacity" in X.columns
