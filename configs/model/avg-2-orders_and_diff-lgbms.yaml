@@ -33,8 +33,8 @@ model_p:
       num_leaves: 500
       min_child_samples: 50
       objective: "regression_l1"
-      device: "cuda"
-      n_jobs: 12
+      device: "cpu"
+      n_jobs: 6
       verbosity: 0
     features: [
       "temperature_historical",
@@ -127,7 +127,7 @@ model_c:
         num_leaves: 500
         min_child_samples: 50
         objective: "regression_l1"
-        device: "cuda"
+        device: "cpu"
         n_jobs: 12
         verbosity: 0
     - _target_: predict_energy_behavior.models.consumption.lgbm_regression.LGBMOnDiff
@@ -178,6 +178,6 @@ model_c:
         num_leaves: 500
         min_child_samples: 50
         objective: "regression_l1"
-        device: "cuda"
+        device: "cpu"
         n_jobs: 12
         verbosity: 0

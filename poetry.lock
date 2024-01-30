@@ -4804,6 +4804,28 @@ files = [
 ]
 
 [[package]]
+name = "skorch"
+version = "0.15.0"
+description = "scikit-learn compatible neural network library for pytorch"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "skorch-0.15.0-py3-none-any.whl", hash = "sha256:b923847cdd815c4657972e7e041c92e3568a9ba6d95ecff88bbc1f6431631445"},
+    {file = "skorch-0.15.0.tar.gz", hash = "sha256:dfd5d50650a66e0d7adb3f6e2fce0666b53ebfe33cc1a5db19d555ef66587fce"},
+]
+
+[package.dependencies]
+numpy = ">=1.13.3"
+scikit-learn = ">=0.22.0"
+scipy = ">=1.1.0"
+tabulate = ">=0.7.7"
+tqdm = ">=4.14.0"
+
+[package.extras]
+docs = ["Sphinx", "numpydoc", "sphinx-rtd-theme"]
+testing = ["accelerate (>=0.22.0)", "fire", "flaky", "future (>=0.17.1)", "gpytorch (>=1.5)", "jupyter", "matplotlib (>=2.0.2)", "neptune", "numpydoc", "openpyxl", "pandas", "pillow", "protobuf (>=3.12.0,<4.0dev)", "pylint", "pytest (>=3.4)", "pytest-cov", "sacred", "safetensors (>=0.3.1)", "sphinx", "sphinx-rtd-theme", "tensorboard (>=1.14.0)", "tokenizers", "transformers", "wandb (>=0.12.17)"]
+
+[[package]]
 name = "smmap"
 version = "5.0.1"
 description = "A pure Python implementation of a sliding window memory map manager"
@@ -5800,4 +5822,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10,<3.12"
-content-hash = "c1dced5001ee161468ff2b591212b61153bbafba55445a566866bdf30ca03ddc"
+content-hash = "51286abe7d33f2cd072889a4ed6634aaef51b6edf0cddb35a637ac9a8078f3a3"

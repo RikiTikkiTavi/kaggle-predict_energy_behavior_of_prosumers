@@ -24,6 +24,8 @@ from predict_energy_behavior.models.consumption.lgbm_regression import (
     LGBMSecondOrderModel, LGBMOnMultiDiff
 )
 
+import joblib
+
 _logger = logging.getLogger(__name__)
 
 
@@ -143,12 +145,17 @@ class JoinedModel(RegressionBase[Literal[2]]):
     def load(cls, path: Path | str) -> "JoinedModel":
         if type(path) is str:
             path = Path(path)
-        return JoinedModel(
-            model_p=TwoOrdersRegression.load(path / "production"),
-            model_c=LGBMOnMultiDiff.load(path / "consumption")
-        )
+
+        model = joblib.load(path / "joined_model.pickle")
+
+        model._model_p = model._model_p.load(path / "production")
+        model._model_c =  model._model_c.load(path / "consumption")
+
+        return model
 
     def save(self, path: Path):
+        joblib.dump(self, path / "joined_model.pickle")
+        
         path_output_p = path / "production"
         path_output_p.mkdir(exist_ok=True, parents=True)
         self._model_p.save(path_output_p)

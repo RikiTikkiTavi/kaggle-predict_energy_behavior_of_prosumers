@@ -39,6 +39,7 @@ global-land-mask = "^1.0.0"
 lightgbm = "^4.2.0"
 holidays = "^0.41"
 fastparquet = "^2023.10.1"
+skorch = "^0.15.0"
 
 [[tool.poetry.source]]
 name = "torch-cuda12.1"

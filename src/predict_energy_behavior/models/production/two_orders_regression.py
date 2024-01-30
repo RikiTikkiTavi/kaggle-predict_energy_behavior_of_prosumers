@@ -181,11 +181,12 @@ class AvgTwoOrdersRegression(TwoOrdersRegression):
 
     @classmethod
     def load(cls, path: Path) -> "TwoOrdersRegression":
-        return TwoOrdersRegression(
-            first_order_model=GroupedSolarOutputRegression.load(path / "production_1.pickle"),
-            second_order_model=LGBMSecondOrderModel.load(path)
-        )
+        m = joblib.load(path / "production_two_orders.pickle")
+        m._first_order_model = GroupedSolarOutputRegression.load(path / "production_1.pickle")
+        m._second_order_model = LGBMSecondOrderModel.load(path)
+        return m
 
     def save(self, path: Path):
+        joblib.dump(self, path / "production_two_orders.pickle")
         self._first_order_model.save(path / "production_1.pickle")
         self._second_order_model.save(path)
