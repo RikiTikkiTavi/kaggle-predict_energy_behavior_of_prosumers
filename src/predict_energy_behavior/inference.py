@@ -92,13 +92,15 @@ def main(cfg: config.ConfigInference):
         df_test_features = feature_gen.generate_features(df_test)
         df_test_features = train.replace_historical_with_forecast(df_test_features)
         
+        #print(df_test_features["is_consumption"])
+
         t_process = time.time()
         _logger.info(f"Time to process: {t_process-t_read}s")
 
         preds = model.predict(df_test_features).clip(0)
         df_sample_prediction["target"] = preds
-        df_sample_prediction["target"] = df_sample_prediction["target"].fillna(0.0)
-
+        
+        
         try:
             assert not df_sample_prediction["target"].isna().any()
         except Exception as e:

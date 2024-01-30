@@ -42,20 +42,20 @@ class JoinedModel(RegressionBase[Literal[2]]):
         self._model_c = model_c
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
+        preds = []
+       
         X_p = select_consumption(X, False)
         if len(X_p) > 0:
             preds_p = pd.Series(self._model_p.predict(X_p), index=X_p.index)
-        else:
-            preds_p = pd.Series([])
+            preds.append(preds_p)
 
         X_c = select_consumption(X, True)
         if len(X_c) > 0:
             # X_c = X_c.assign(**{"predictions_production": preds_p})
             preds_c = pd.Series(self._model_c.predict(X_c), index=X_c.index)
-        else:
-            preds_c = pd.Series([])
+            preds.append(preds_c)
 
-        return pd.concat([preds_p, preds_c]).loc[X.index].to_numpy()
+        return pd.concat(preds).loc[X.index].to_numpy()
 
     @overload
     def fit(
