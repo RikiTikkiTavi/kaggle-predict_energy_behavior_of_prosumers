@@ -23,7 +23,7 @@ model_p:
     n_jobs: 4
     n_gpus: 4
     parameters:
-      n_estimators: 1000
+      n_estimators: 1500
       learning_rate: 0.06
       colsample_bytree: 0.9
       colsample_bynode: 0.6
@@ -50,6 +50,8 @@ model_p:
       "10_metre_u_wind_component_historical",
       "10_metre_v_wind_component_historical",
       "fog_historical",
+      "rain_integrated_168h_historical_h48",
+      "snowfall_integrated_48h_forecast",
       # Historical diff 0h
       "diff_48h_temperature_historical",
       "diff_48h_dewpoint_historical",
@@ -71,7 +73,7 @@ model_p:
       "is_business",
       # Target
       "target_per_capacity_48h",
-      "target_per_capacity_all_type_sum_48h",
+      "target_per_capacity_all_type_mean_48h",
     ]
 model_c:
   _target_: predict_energy_behavior.models.consumption.lgbm_regression.LGBMOnMultiDiff
@@ -80,9 +82,9 @@ model_c:
   models:
     - _target_: predict_energy_behavior.models.consumption.lgbm_regression.LGBMOnDiff
       diff_hours: 48
-      n_models: 4
+      n_models: 6
       n_gpus: 2
-      n_jobs: 4
+      n_jobs: 6
       features: [
         # "predictions_production",
         "product_type",
@@ -91,7 +93,7 @@ model_c:
         "month",
         "dayofyear",
         "hour",
-        "eic_count",
+        # "eic_count",
         "is_country_holiday",
         # Historical diff 0h
         "diff_48h_temperature_historical",
@@ -117,7 +119,7 @@ model_c:
       ]
 
       parameters:
-        n_estimators: 1000
+        n_estimators: 1500
         learning_rate: 0.06
         colsample_bytree: 0.9
         colsample_bynode: 0.6
@@ -132,9 +134,9 @@ model_c:
         verbosity: 0
     - _target_: predict_energy_behavior.models.consumption.lgbm_regression.LGBMOnDiff
       diff_hours: 168
-      n_models: 4
+      n_models: 6
       n_gpus: 2
-      n_jobs: 4
+      n_jobs: 6
       features: [
         # "predictions_production",
         "product_type",
@@ -168,7 +170,7 @@ model_c:
         "target_per_eic_diff_168h_q75",
       ]
       parameters:
-        n_estimators: 1000
+        n_estimators: 1500
         learning_rate: 0.06
         colsample_bytree: 0.9
         colsample_bynode: 0.6

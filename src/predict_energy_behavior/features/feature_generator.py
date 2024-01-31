@@ -207,23 +207,19 @@ class FeaturesGenerator:
 
         df_historical_integrated_weather = (
             df_historical_weather
-            .group_by("county")
-            .map_groups(
-                function=lambda df_g: df_g.with_columns(
-                    *[
-                        pl.col("rain").round(1).rolling_sum(lag, min_periods=1).alias(f"rain_integrated_{lag}h_historical")
-                        for lag in integrated_lags
-                    ],
-                    *[
-                        pl.col("snowfall").round(1).rolling_sum(lag, min_periods=1).alias(f"snowfall_integrated_{lag}h_historical")
-                        for lag in integrated_lags
-                    ],
-                ) 
+            .sort("county", "datetime")
+            .group_by_dynamic(
+                index_column="datetime",
+                by="county",
+                period="1w",
+                every="1d",
+                label="right"
             )
-            .with_columns(pl.col("datetime") + pl.duration(hours=1))
+            .agg(
+                pl.col("rain").sum().alias(f"rain_integrated_168h_historical")
+            )
             .select(
-                *[f"rain_integrated_{lag}h_historical" for lag in integrated_lags],
-                *[f"snowfall_integrated_{lag}h_historical" for lag in integrated_lags],
+                f"rain_integrated_168h_historical",
                 "county",
                 "datetime"
             )
@@ -241,11 +237,14 @@ class FeaturesGenerator:
                 on=["datetime", "county"],
                 how="left",
                 suffix=f"_h{hours_lag}",
-            ).join(
+            )
+
+        for hours_lag in [24, 48]:
+            df_features = df_features.join(
                 df_historical_integrated_weather.with_columns(
-                    pl.col("datetime") + pl.duration(hours=hours_lag)
-                ),
-                on=["datetime", "county"],
+                    (pl.col("datetime") + pl.duration(hours=hours_lag)).cast(pl.Date).alias("date")
+                ).drop("datetime"),
+                on=["date", "county"],
                 how="left",
                 suffix=f"_h{hours_lag}",
             )
@@ -325,20 +324,41 @@ class FeaturesGenerator:
 
         integrated_lags = [24, 48, 72]
 
-        df_forecast_integrated_weather = (
-            df_forecast_weather.with_columns(
-                *[
-                    pl.col("rain").clip(0.0).round(1).rolling_sum(window_size=lag, min_periods=1).over("county").alias(f"rain_integrated_{lag}h_forecast")
-                    for lag in integrated_lags
-                ],
-                *[
-                    pl.col("snowfall").clip(0.0).round(1).rolling_sum(window_size=lag, min_periods=1).over("county").alias(f"snowfall_integrated_{lag}h_forecast")
-                    for lag in integrated_lags
-                ],
-                pl.col("datetime") + pl.duration(hours=1)
-            ).select(
-                *[f"rain_integrated_{lag}h_forecast" for lag in integrated_lags],
-                *[f"snowfall_integrated_{lag}h_forecast" for lag in integrated_lags],
+        df_forecast_integrated_rain = (
+            df_forecast_weather
+            .sort("county", "datetime")
+            .group_by_dynamic(
+                index_column="datetime",
+                by="county",
+                period="1w",
+                every="1d",
+                label="right"
+            )
+            .agg(
+                pl.col("rain").sum().alias(f"rain_integrated_168h_forecast")
+            )
+            .select(
+                f"rain_integrated_168h_forecast",
+                "county",
+                "datetime"
+            )
+        )
+
+        df_forecast_integrated_snowfall = (
+            df_forecast_weather
+            .sort("county", "datetime")
+            .group_by_dynamic(
+                index_column="datetime",
+                by="county",
+                period="2d",
+                every="1d",
+                label="right"
+            )
+            .agg(
+                pl.col("snowfall").sum().alias(f"snowfall_integrated_48h_forecast")
+            )
+            .select(
+                f"snowfall_integrated_48h_forecast",
                 "county",
                 "datetime"
             )
@@ -356,11 +376,21 @@ class FeaturesGenerator:
                 on=["datetime", "county"],
                 how="left",
                 suffix=f"_h{hours_lag}",
+            )
+
+        for hours_lag in [24, 48]:
+            df_features = df_features.join(
+                df_forecast_integrated_rain.with_columns(
+                    (pl.col("datetime") + pl.duration(hours=hours_lag)).cast(pl.Date).alias("date")
+                ).drop("datetime"),
+                on=["date", "county"],
+                how="left",
+                suffix=f"_h{hours_lag}",
             ).join(
-                df_forecast_integrated_weather.with_columns(
-                    pl.col("datetime") + pl.duration(hours=hours_lag)
-                ),
-                on=["datetime", "county"],
+                df_forecast_integrated_snowfall.with_columns(
+                    (pl.col("datetime") + pl.duration(hours=hours_lag)).cast(pl.Date).alias("date")
+                ).drop("datetime"),
+                on=["date", "county"],
                 how="left",
                 suffix=f"_h{hours_lag}",
             )

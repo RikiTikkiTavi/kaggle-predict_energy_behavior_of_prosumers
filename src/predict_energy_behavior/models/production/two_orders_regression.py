@@ -131,8 +131,16 @@ class AvgTwoOrdersRegression(TwoOrdersRegression):
         results_first_order = self._first_order_model.predict(X)
         X["predictions_first_order"] = results_first_order
 
-        return self.weights[0] * results_first_order + self.weights[1] * self._second_order_model.predict(X)
+        results_second_order = self._second_order_model.predict(X)
 
+        results_combined = np.where(
+            np.isin(X["month"], [11,12,1,2,3]),
+            results_first_order,
+            results_second_order
+        ).clip(0.0)
+
+        return results_combined
+    
     def _fit_with_separate_dfs(self, train_tups: tuple[TrainTupType, TrainTupType]):
         d_1, d_2 = train_tups
         
