@@ -155,7 +155,9 @@ class DataStorage:
             os.path.join(self.root, "train.csv"),
             columns=self.data_cols,
             try_parse_dates=True,
-        ))
+        )).filter(
+            pl.col("datetime") >= datetime(year=2022, month=1, day=1)
+        )
 
         self.df_client = pl.read_csv(
             os.path.join(self.root, "client.csv"),
